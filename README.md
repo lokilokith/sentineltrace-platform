@@ -193,6 +193,14 @@ High Severity Investigation Queue
 
 ---
 
+# Additional Documentation
+
+For detailed engineering decisions, investigation methodology, architecture reasoning, and behavioral correlation design, see:
+
+- [Engineering Case Study](CASE_STUDY.md)
+
+---
+
 # Architecture
 
 ![Architecture](screenshots/architecture.png)
