@@ -1,23 +1,36 @@
 # SentinelTrace Platform
 
-SOC-focused endpoint telemetry analysis and threat hunting platform built using Sysmon event logs, behavioral correlation, MITRE ATT&CK mapping, and investigation-oriented analytics.
-
----
-
-# Overview
-
-SentinelTrace is a cybersecurity-focused investigation platform designed to analyze historical Sysmon telemetry and reconstruct suspicious activity chains through behavioral correlation, threat scoring, and ATT&CK-aligned analytics.
+SentinelTrace is a cybersecurity-focused investigation platform designed to analyze historical Sysmon telemetry and reconstruct suspicious activity chains through behavioral correlation, threat scoring, and MITRE ATT&CK-aligned analytics.
 
 The platform focuses on:
 
-- endpoint telemetry analysis
-- attack timeline reconstruction
-- campaign correlation
+- Endpoint telemetry analysis
+- Attack timeline reconstruction
+- Campaign correlation
 - LOLBIN detection
-- analyst-oriented investigation workflows
-- baseline-aware threat scoring
+- Analyst-oriented investigation workflows
+- Baseline-aware threat scoring
+- Process lineage reconstruction
+- Behavioral threat hunting
 
 Rather than acting as a traditional SIEM ingestion pipeline, SentinelTrace is designed as an offline threat hunting and forensic investigation environment for SOC-oriented workflows.
+
+---
+
+# Why Sysmon?
+
+Sysmon provides high-fidelity Windows telemetry that is valuable for:
+
+- Process creation tracking
+- Parent-child process relationships
+- Network connection monitoring
+- Persistence detection
+- PowerShell visibility
+- Lateral movement investigation
+- Command-line auditing
+- Behavioral investigation workflows
+
+SentinelTrace uses Sysmon XML telemetry as the foundation for behavioral analysis, telemetry enrichment, and attack-chain reconstruction.
 
 ---
 
@@ -28,6 +41,17 @@ Rather than acting as a traditional SIEM ingestion pipeline, SentinelTrace is de
 - Parses Windows Sysmon XML logs
 - Extracts process, network, parent-child, and command-line activity
 - Normalizes endpoint telemetry for investigation workflows
+- Reconstructs process lineage relationships
+- Builds contextual event timelines
+
+### Telemetry Coverage
+
+- Process execution events
+- Parent-child process relationships
+- Command-line extraction
+- Network activity visibility
+- Suspicious execution tracing
+- Endpoint behavioral telemetry
 
 ---
 
@@ -36,21 +60,24 @@ Rather than acting as a traditional SIEM ingestion pipeline, SentinelTrace is de
 - Correlates suspicious event sequences
 - Detects behavioral attack chains
 - Links related telemetry into investigation campaigns
+- Groups suspicious telemetry into analyst workflows
 
-### Examples
+### Example Behaviors
 
 - Encoded PowerShell execution
 - LOLBIN abuse
 - Suspicious parent-child process chains
 - Lateral movement indicators
 - Persistence behavior
+- Remote execution workflows
+- Command execution anomalies
 
 ---
 
 ## MITRE ATT&CK Mapping
 
 - Maps telemetry into ATT&CK tactics and techniques
-- Context-aware enrichment for:
+- Provides contextual ATT&CK enrichment for:
 
   - PowerShell
   - cmd.exe
@@ -78,15 +105,15 @@ Interactive SOC-oriented investigation dashboard featuring:
 - Campaign correlation
 - Attack timeline reconstruction
 - ATT&CK analytics
-- Process investigation
-- Escalation reasoning
-- Threat triage workflows
+- Threat investigation workflows
+- Hunt console views
+- Incident prioritization
 
 ---
 
 ## LOLBIN & Command Analysis
 
-Detects suspicious use of:
+Detects suspicious usage patterns involving:
 
 - PowerShell
 - cmd.exe
@@ -94,7 +121,75 @@ Detects suspicious use of:
 - regsvr32
 - WMI
 - Encoded commands
-- Suspicious command-line execution patterns
+- Suspicious command-line execution
+
+---
+
+# Detection Methodology
+
+SentinelTrace combines:
+
+- Telemetry normalization
+- Behavioral correlation
+- Baseline comparison
+- ATT&CK enrichment
+- Threat scoring
+
+The platform prioritizes behavioral relationships and investigation context over simple single-event signature matching.
+
+---
+
+# Example Detection Scenario
+
+### Observed Process Chain
+
+```text
+WINWORD.exe
+    ↓
+powershell.exe -enc
+    ↓
+cmd.exe
+    ↓
+Outbound Network Activity
+```
+
+---
+
+# Correlation Outcome
+
+SentinelTrace identifies:
+
+- Encoded execution behavior
+- Suspicious scripting activity
+- Abnormal process lineage
+- ATT&CK tactic overlap
+- Escalation-worthy telemetry
+
+---
+
+# ATT&CK Classification
+
+| Tactic | Technique |
+|---|---|
+| Execution | PowerShell |
+| Defense Evasion | Obfuscated Execution |
+| Command & Scripting Interpreter | PowerShell |
+
+---
+
+# Threat Score
+
+```text
+82 / 100
+```
+
+---
+
+# Escalation Result
+
+```text
+High Severity Investigation Queue
+```
 
 ---
 
@@ -109,7 +204,7 @@ Event Parser
         ↓
 Telemetry Normalization
         ↓
-Baseline & Sequence Analysis
+Baseline & Behavioral Analysis
         ↓
 Behavioral Correlation Engine
         ↓
@@ -126,19 +221,41 @@ SOC Investigation Dashboard
 
 ## Main Dashboard
 
-![Dashboard](screenshots/dashboard.png)
+![Main Dashboard](screenshots/dashboard.png)
+
+### Highlights
+
+- Threat posture overview
+- Incident queue management
+- Analyst escalation workflows
+- Contextual risk scoring
+- Campaign prioritization
 
 ---
 
 ## MITRE ATT&CK Mapping
 
-![MITRE](screenshots/mitre.png)
+![MITRE ATT&CK](screenshots/mitre.png)
+
+### Highlights
+
+- ATT&CK tactic correlation
+- Detection distribution
+- Investigation enrichment
+- Telemetry classification
 
 ---
 
 ## Threat Investigation
 
-![Investigation](screenshots/investigation.png)
+![Threat Investigation](screenshots/investigation.png)
+
+### Highlights
+
+- Attack storyline reconstruction
+- Process chain visualization
+- Timeline investigation
+- Behavioral campaign analysis
 
 ---
 
@@ -146,15 +263,29 @@ SOC Investigation Dashboard
 
 ![Hunt Console](screenshots/hunt_console.png)
 
+### Highlights
+
+- Active incident triage
+- Escalation queue management
+- SOC analyst workflows
+- Incident prioritization
+
 ---
 
 # Repository Structure
 
 ```text
-dashboard/          Core platform source code
-tools/              Validation and calibration tooling
-docs/               SQL setup scripts and architecture docs
-screenshots/        Dashboard screenshots
+dashboard/              Core platform source code
+dashboard/templates/   HTML templates
+dashboard/static/      CSS and frontend assets
+
+tools/                 Validation and calibration tooling
+
+docs/sql/              SQL setup scripts and migration files
+
+screenshots/           Dashboard and architecture screenshots
+
+sample_logs/           Example Sysmon telemetry datasets
 ```
 
 ---
@@ -170,6 +301,7 @@ screenshots/        Dashboard screenshots
 | Telemetry Source | Sysmon |
 | Threat Mapping | MITRE ATT&CK |
 | Detection Logic | Behavioral Correlation |
+| Investigation Workflow | SOC-Oriented Analytics |
 
 ---
 
@@ -242,16 +374,36 @@ http://127.0.0.1:5000
 
 The repository includes:
 
-- forensic calibration tooling
-- orchestration validation
-- threat scoring calibration
-- behavioral validation workflows
+- Forensic calibration tooling
+- Orchestration validation
+- Threat scoring calibration
+- Behavioral validation workflows
+- Detection testing utilities
 
 Located in:
 
 ```text
 tools/
 ```
+
+---
+
+# Sample Telemetry
+
+Example datasets can be stored under:
+
+```text
+sample_logs/
+```
+
+### Recommended Telemetry Examples
+
+- Encoded PowerShell execution
+- LOLBIN abuse
+- WMI execution
+- Persistence activity
+- Suspicious command-line execution
+- Lateral movement traces
 
 ---
 
@@ -265,6 +417,8 @@ tools/
 - Behavioral threat scoring
 - LOLBIN analysis
 - Investigation-oriented analytics
+- Process lineage analysis
+- Behavioral telemetry correlation
 
 ---
 
@@ -287,21 +441,33 @@ Potential future enhancements:
 - Enhanced DFIR workflows
 - Expanded ATT&CK enrichment
 - Threat intelligence integration
+- Graph-based timeline visualization
+- IOC tagging workflows
+- Detection tuning profiles
 
 ---
 
-# Educational Purpose
+# Educational Focus
 
-This project was developed as a SOC-focused cybersecurity engineering and threat hunting platform for learning:
+SentinelTrace was developed as a cybersecurity engineering and threat hunting platform focused on:
 
 - Detection engineering
 - Endpoint telemetry analysis
 - Behavioral analytics
 - MITRE ATT&CK mapping
 - Threat investigation workflows
+- Process lineage analysis
+- DFIR investigation concepts
+- SOC-oriented analytics
 
 ---
 
 # License
 
 This project is released for educational and portfolio purposes.
+
+---
+
+# Author
+
+Developed by Lokith as a SOC-focused cybersecurity engineering and threat hunting platform project.
