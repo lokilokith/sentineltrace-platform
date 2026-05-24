@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; margin: 1.5rem; background-color: #f7f7f7; }
+        h1, h2 { color: #333333; }
+        a { color: #1976d2; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 2rem; background-color: #ffffff; }
+        th, td { border: 1px solid #dddddd; padding: 0.5rem 0.75rem; text-align: left; font-size: 0.9rem; }
+        th { background-color: #f0f0f0; }
+        .collapsible-section {
+            max-height: 400px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            position: relative;
+        }
+        .collapsible-section.expanded {
+            max-height: 5000px;
+        }
+        .toggle-btn {
+            background: #eee;
+            border: 1px solid #ddd;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+        .toggle-btn:hover { background: #e5e5e5; }
+        .collapse-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: linear-gradient(transparent, #fff);
+            pointer-events: none;
+        }
+        .expanded .collapse-overlay { display: none; }
+    </style>
+    <script>
+        function toggleSection(id) {
+            const el = document.getElementById(id);
+            el.classList.toggle('expanded');
+            const btn = el.previousElementSibling;
+            btn.innerText = el.classList.contains('expanded') ? 'Collapse View' : 'Expand Full View';
+        }
+    </script>
+</head>
+<body>
+    <h1>{{ title | default('Process Investigation') }}</h1>
+    <p><a href="{{ url_for('dashboard', run_id=session.get('analysis_run_id','')) }}">&larr; Back to dashboard</a></p>
+
+    <!-- ===== CONTEXT VERDICT BOX (REQUIRED) ===== -->
+    <div class="context-verdict">
+        <strong>Context Assessment:</strong><br>
+        Process execution was observed {% if timeline %}{{ timeline | length }} time(s){% else %}in this dataset{% endif %}, 
+        primarily launched by <em>{{ parents[0].parent_image if parents else 'unknown parent' }}</em>.
+        No evidence of payload delivery, persistence mechanisms, or command-and-control activity was observed in this telemetry.
+        <br><br>
+        <strong>Interpretation:</strong> Likely administrative or automation-driven activity, 
+        pending correlation with network or persistence indicators.
+    </div>
+
+    <!-- Supporting Evidence Label -->
+    <p style="font-size:12px; color:#666; font-style:italic; margin:20px 0 16px 0;">
+        The following sections provide supporting evidence for the assessment above.
+    </p>
+
+    <!-- ===== TIMELINE ===== -->
+    <h2>Execution Timeline (Repeated Activity)</h2>
+    <p class="table-context">
+        Shows when the process ran, which event types were logged, and process identifiers.
+    </p>
+    <button class="toggle-btn" onclick="toggleSection('timeline-sec')">Expand Full View</button>
+    <div id="timeline-sec" class="collapsible-section">
+        <table>
+            <thead>
+            <tr>
+                <th>Time (UTC)</th>
+                <th>Event ID</th>
+                <th>Description</th>
+                <th>Image</th>
+                <th>Computer</th>
+                <th>Process ID</th>
+                <th>Parent image</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% if timeline %}
+                {% for ev in timeline %}
+                <tr>
+                    <td>{{ ev.utc_time | default('—') }}</td>
+                    <td>{{ ev.event_id | default('—') }}</td>
+                    <td>{{ ev.description | default('—') }}</td>
+                    <td>{{ ev.image | default('—') }}</td>
+                    <td>{{ ev.computer | default('—') }}</td>
+                    <td>{{ ev.process_id | default('—') }}</td>
+                    <td>{{ ev.parent_image | default('—') }}</td>
+                </tr>
+                {% endfor %}
+            {% else %}
+            <tr><td colspan="7" style="color:#999;">No timeline events available.</td></tr>
+            {% endif %}
+            </tbody>
+        </table>
+        <div class="collapse-overlay"></div>
+    </div>
+
+    <!-- ===== PARENT PROCESSES ===== -->
+    <h2>Who launches this process?</h2>
+    <p class="table-context">
+        Indicates whether execution was user-initiated, service-driven, or automated.
+    </p>
+    <table>
+        <thead>
+        <tr>
+            <th>Parent image</th>
+            <th>Count</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% if parents %}
+            {% for row in parents %}
+            <tr>
+                <td>{{ row.parent_image | default('—') }}</td>
+                <td>{{ row.count | default(0) }}</td>
+            </tr>
+            {% endfor %}
+        {% else %}
+        <tr><td colspan="2" style="color:#999;">No parent process data available.</td></tr>
+        {% endif %}
+        </tbody>
+    </table>
+
+    <!-- ===== CHILD PROCESSES ===== -->
+    <h2>What does this process spawn?</h2>
+    <p class="table-context">
+        Child processes may indicate follow-on execution, scripting behavior, or system administration tasks.
+    </p>
+    <table>
+        <thead>
+        <tr>
+            <th>Child image</th>
+            <th>Count</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% if children %}
+            {% for row in children %}
+            <tr>
+                <td>{{ row.image | default('—') }}</td>
+                <td>{{ row.count | default(0) }}</td>
+            </tr>
+            {% endfor %}
+        {% else %}
+        <tr><td colspan="2" style="color:#999;">No child process data available.</td></tr>
+        {% endif %}
+        </tbody>
+    </table>
+
+    <!-- ===== DETECTIONS ===== -->
+    <h2>Detection hits involving this process</h2>
+    <p class="table-context">
+        Rules that fired during this process execution window.
+    </p>
+    <button class="toggle-btn" onclick="toggleSection('det-sec')">Expand Full View</button>
+    <div id="det-sec" class="collapsible-section">
+        <table>
+            <thead>
+            <tr>
+                <th>Time (UTC)</th>
+                <th>Rule ID</th>
+                <th>Rule name</th>
+                <th>MITRE ID</th>
+                <th>Tactic</th>
+                <th>Severity</th>
+                <th>Context</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% if detections %}
+                {% for d in detections %}
+                <tr>
+                    <td>{{ d.utc_time | default('—') }}</td>
+                    <td>{{ d.rule_id | default('—') }}</td>
+                    <td>{{ d.rule_name | default('—') }}</td>
+                    <td>{{ d.mitre_id | default('—') }}</td>
+                    <td>{{ d.mitre_tactic | default('—') }}</td>
+                    <td>{{ d.severity | default('—') }}</td>
+                    <td>{{ d.context | default('—') }}</td>
+                </tr>
+                {% endfor %}
+            {% else %}
+            <tr><td colspan="7" style="color:#999;">No detection hits for this process.</td></tr>
+            {% endif %}
+            </tbody>
+        </table>
+        <div class="collapse-overlay"></div>
+    </div>
+
+    <p style="font-size:11px; color:#999; margin-top:40px; padding-top:20px; border-top:1px solid #ddd;">
+        Process detail view for <strong>{{ title }}</strong>. Shows timeline, parent/child relationships, and detection matches.
+    </p>
+</body>
+</html>

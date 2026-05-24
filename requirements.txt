@@ -1,0 +1,8 @@
+psutil==7.2.2
+pandas
+sqlalchemy
+Flask
+mysql-connector-python
+yara-python
+zlib-ng  # Optional but good for performance
+watchdog

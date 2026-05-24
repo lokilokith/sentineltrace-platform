@@ -1,0 +1,770 @@
+# ============================================================
+# SentinelTrace Detection Rules v3 — 56 rules + behavioral conditions
+# ============================================================
+# NEW in v3: `conditions` block — behavioral fields evaluated at runtime.
+# These catch obfuscated/renamed binaries that evade image_contains checks.
+# Supported operators: >, >=, <, <=, ==, !=
+# Special field: parent_child_combo: [parent, child]
+# ============================================================
+rules:
+
+  # --- EXECUTION ---
+  - rule_id: DET-001
+    name: PowerShell encoded command execution
+    event_id: [1]
+    image_contains: powershell
+    cmd_any: ["-enc ", "-encodedcommand", " -e "]
+    severity: high
+    mitre_id: T1059.001
+    mitre_tactic: Execution
+    kill_chain_stage: Execution
+    confidence: 75
+    description: PowerShell launched with encoded command — common obfuscation technique
+
+  - rule_id: DET-001B
+    name: High-entropy PowerShell (obfuscation without -enc flag)
+    event_id: [1]
+    image_contains: powershell
+    severity: high
+    mitre_id: T1059.001
+    mitre_tactic: Execution
+    kill_chain_stage: Execution
+    confidence: 70
+    description: PowerShell with high command entropy — obfuscated payload without explicit -enc flag
+    conditions:
+      - field: cmd_entropy
+        operator: ">"
+        value: 4.5
+
+  - rule_id: DET-002
+    name: PowerShell download cradle
+    event_id: [1]
+    image_contains: powershell
+    cmd_any: ["downloadstring", "downloadfile", "webclient", "invoke-webrequest", "iwr ", "bitsadmin"]
+    severity: high
+    mitre_id: T1059.001
+    mitre_tactic: Execution
+    kill_chain_stage: Execution
+    confidence: 80
+    description: PowerShell executing a download cradle — staging malware from remote source
+
+  - rule_id: DET-002B
+    name: PowerShell network activity with high entropy (fileless staging)
+    event_id: [1, 3]
+    image_contains: powershell
+    severity: high
+    mitre_id: T1059.001
+    mitre_tactic: Execution
+    kill_chain_stage: Execution
+    confidence: 85
+    description: PowerShell making network connection with obfuscated command — fileless staging
+    conditions:
+      - field: cmd_entropy
+        operator: ">"
+        value: 3.8
+      - field: has_net
+        operator: "=="
+        value: true
+
+  - rule_id: DET-003
+    name: PowerShell bypass execution policy
+    event_id: [1]
+    image_contains: powershell
+    cmd_any: ["-bypass", "-nop ", "-noprofile", "-noninteractive", "-windowstyle hidden", "-w hidden"]
+    severity: medium
+    mitre_id: T1059.001
+    mitre_tactic: Execution
+    kill_chain_stage: Execution
+    confidence: 55
+    description: PowerShell launched with security bypass flags
+    filter_benign_parent: true
+
+  - rule_id: DET-004
+    name: Cmd.exe spawned by script engine
+    event_id: [1]
+    image_any: [cmd.exe]
+    parent_any: [powershell.exe, wscript.exe, cscript.exe, mshta.exe, regsvr32.exe, rundll32.exe]
+    severity: high
+    mitre_id: T1059.003
+    mitre_tactic: Execution
+    kill_chain_stage: Execution
+    confidence: 70
+    description: cmd.exe spawned by scripting/service process — dropper or lateral movement
+
+  - rule_id: DET-004B
+    name: Office macro spawning shell (macro-based phishing)
+    event_id: [1]
+    severity: critical
+    mitre_id: T1566.001
+    mitre_tactic: Initial Access
+    kill_chain_stage: Execution
+    confidence: 95
+    description: Office application spawned shell — classic macro-based phishing execution
+    conditions:
+      - field: parent_child_combo
+        value: ["winword.exe", "powershell.exe"]
+
+  - rule_id: DET-004C
+    name: Excel spawning shell (macro-based phishing)
+    event_id: [1]
+    severity: critical
+    mitre_id: T1566.001
+    mitre_tactic: Initial Access
+    kill_chain_stage: Execution
+    confidence: 95
+    description: Excel spawned PowerShell — macro execution in spreadsheet
+    conditions:
+      - field: parent_child_combo
+        value: ["excel.exe", "powershell.exe"]
+
+  - rule_id: DET-005
+    name: WScript or CScript execution
+    event_id: [1]
+    image_any: [wscript.exe, cscript.exe]
+    severity: medium
+    mitre_id: T1059.005
+    mitre_tactic: Execution
+    kill_chain_stage: Execution
+    confidence: 50
+    description: Windows Script Host execution — VBScript/JScript payloads
+    filter_benign_parent: true
+
+  - rule_id: DET-006
+    name: MSHTA executing remote content
+    event_id: [1]
+    image_contains: mshta
+    cmd_any: ["http://", "https://", "vbscript:", "javascript:"]
+    severity: critical
+    mitre_id: T1218.005
+    mitre_tactic: Defense Evasion
+    kill_chain_stage: Execution
+    confidence: 90
+    description: MSHTA executing remote or inline script — HTA-based dropper
+
+  - rule_id: DET-007
+    name: Rundll32 executing script content
+    event_id: [1]
+    image_contains: rundll32
+    cmd_any: ["javascript:", "vbscript:", "http://", "shell32", "advpack", "setupapi"]
+    severity: high
+    mitre_id: T1218.011
+    mitre_tactic: Defense Evasion
+    kill_chain_stage: Execution
+    confidence: 75
+    description: Rundll32 used to proxy execution of script or remote content
+
+  - rule_id: DET-008
+    name: Regsvr32 scriptlet execution (Squiblydoo)
+    event_id: [1]
+    image_contains: regsvr32
+    cmd_any: ["/i", "http://", "scrobj.dll"]
+    severity: critical
+    mitre_id: T1218.010
+    mitre_tactic: Defense Evasion
+    kill_chain_stage: Execution
+    confidence: 85
+    description: Regsvr32 Squiblydoo attack — executes remote SCT scriptlets bypassing AppLocker
+
+  - rule_id: DET-009
+    name: WMIC remote process execution
+    event_id: [1]
+    image_contains: wmic
+    cmd_any: ["process call create", "/node:", "shadowcopy delete"]
+    severity: high
+    mitre_id: T1047
+    mitre_tactic: Execution
+    kill_chain_stage: Execution
+    confidence: 70
+    description: WMIC used for remote process execution or WMI abuse
+
+  - rule_id: DET-010
+    name: Certutil decode or download
+    event_id: [1]
+    image_contains: certutil
+    cmd_any: ["-decode", "-urlcache", "-f http", "split"]
+    severity: high
+    mitre_id: T1105
+    mitre_tactic: Command and Control
+    kill_chain_stage: Command and Control
+    confidence: 80
+    description: Certutil used to download or decode files — LOLBin payload staging
+
+  - rule_id: DET-010B
+    name: LOLBin with network + encoded payload (any LOLBin, not just certutil)
+    event_id: [1, 3]
+    severity: high
+    mitre_id: T1105
+    mitre_tactic: Command and Control
+    kill_chain_stage: Command and Control
+    confidence: 80
+    description: LOLBin making network connection with encoded command — C2 staging via any LOLBin
+    conditions:
+      - field: has_net
+        operator: "=="
+        value: true
+      - field: cmd_b64_detected
+        operator: "=="
+        value: true
+
+  - rule_id: DET-049
+    name: PowerShell launched from Office app
+    event_id: [1]
+    image_contains: powershell
+    parent_any: [winword.exe, excel.exe, outlook.exe, powerpnt.exe]
+    severity: critical
+    mitre_id: T1566.001
+    mitre_tactic: Initial Access
+    kill_chain_stage: Execution
+    confidence: 95
+    description: PowerShell launched from Office — macro-based phishing payload execution
+
+  - rule_id: DET-050
+    name: PowerShell HTTP download
+    event_id: [1]
+    image_contains: powershell
+    cmd_any: ["invoke-webrequest", "new-object system.net.webclient", ".download"]
+    severity: high
+    mitre_id: T1059.001
+    mitre_tactic: Execution
+    kill_chain_stage: Execution
+    confidence: 75
+    description: PowerShell performing HTTP download — payload staging
+
+  - rule_id: DET-051
+    name: Compiled HTML file (CHM) execution
+    event_id: [1]
+    image_contains: hh.exe
+    severity: high
+    mitre_id: T1218.001
+    mitre_tactic: Defense Evasion
+    kill_chain_stage: Execution
+    confidence: 70
+    description: HTML Help executable used — CHM files can execute VBScript payloads
+
+  - rule_id: DET-052
+    name: Installutil AppLocker bypass
+    event_id: [1]
+    image_contains: installutil
+    severity: high
+    mitre_id: T1218.004
+    mitre_tactic: Defense Evasion
+    kill_chain_stage: Execution
+    confidence: 75
+    description: InstallUtil LOLBin abuse — executes unsigned .NET code bypassing AppLocker
+
+  - rule_id: DET-053
+    name: MSBuild code execution bypass
+    event_id: [1]
+    image_contains: msbuild
+    cmd_any: [".xml", ".csproj"]
+    severity: high
+    mitre_id: T1127.001
+    mitre_tactic: Defense Evasion
+    kill_chain_stage: Execution
+    confidence: 70
+    description: MSBuild executing project file — trusted tool running malicious inline C# tasks
+
+  # --- PERSISTENCE ---
+  - rule_id: DET-011
+    name: Scheduled task creation
+    event_id: [1]
+    image_contains: schtasks
+    cmd_any: ["/create", "-create"]
+    severity: high
+    mitre_id: T1053.005
+    mitre_tactic: Persistence
+    kill_chain_stage: Persistence
+    confidence: 70
+    description: Scheduled task created — common persistence mechanism
+
+  - rule_id: DET-012
+    name: Legacy AT scheduler persistence
+    event_id: [1]
+    image_any: [at.exe]
+    severity: high
+    mitre_id: T1053.002
+    mitre_tactic: Persistence
+    kill_chain_stage: Persistence
+    confidence: 65
+    description: Legacy AT scheduler used for persistence or lateral movement execution
+
+  - rule_id: DET-013
+    name: Registry Run key modification
+    event_id: [12, 13, 14]
+    path_prefix_any:
+      - "hklm\\software\\microsoft\\windows\\currentversion\\run"
+      - "hkcu\\software\\microsoft\\windows\\currentversion\\run"
+      - "hklm\\software\\wow6432node\\microsoft\\windows\\currentversion\\run"
+    severity: high
+    mitre_id: T1547.001
+    mitre_tactic: Persistence
+    kill_chain_stage: Persistence
+    confidence: 80
+    description: Registry Run key modified — autorun persistence mechanism
+
+  - rule_id: DET-014
+    name: Startup folder file creation
+    event_id: [11]
+    path_prefix_any:
+      - "c:\\users\\public\\start menu\\programs\\startup"
+      - "c:\\programdata\\microsoft\\windows\\start menu\\programs\\startup"
+    severity: high
+    mitre_id: T1547.001
+    mitre_tactic: Persistence
+    kill_chain_stage: Persistence
+    confidence: 75
+    description: File dropped in startup folder — persistence on next logon
+
+  - rule_id: DET-015
+    name: New Windows service creation
+    event_id: [1]
+    image_any: [sc.exe]
+    cmd_any: ["create", "config"]
+    severity: high
+    mitre_id: T1543.003
+    mitre_tactic: Persistence
+    kill_chain_stage: Persistence
+    confidence: 70
+    description: Windows service created or reconfigured — persistence and privilege escalation
+
+  - rule_id: DET-016
+    name: Service registry key modification
+    event_id: [12, 13]
+    path_prefix_any: ["hklm\\system\\currentcontrolset\\services"]
+    severity: medium
+    mitre_id: T1543.003
+    mitre_tactic: Persistence
+    kill_chain_stage: Persistence
+    confidence: 60
+    description: Service registry key modified — possible rootkit or persistence implant
+
+  # --- PRIVILEGE ESCALATION ---
+  - rule_id: DET-017
+    name: Process injection via CreateRemoteThread
+    event_id: [8]
+    severity: critical
+    mitre_id: T1055.001
+    mitre_tactic: Privilege Escalation
+    kill_chain_stage: Privilege Escalation
+    confidence: 90
+    description: CreateRemoteThread detected — direct indicator of process injection
+
+  - rule_id: DET-018
+    name: Process hollowing detected
+    event_id: [25]
+    severity: critical
+    mitre_id: T1055.012
+    mitre_tactic: Defense Evasion
+    kill_chain_stage: Privilege Escalation
+    confidence: 90
+    description: Process tampering detected — attacker replaced legitimate process memory
+
+  - rule_id: DET-019
+    name: Token privilege enumeration
+    event_id: [1]
+    image_any: [whoami.exe]
+    cmd_any: ["/priv", "/groups", "/all"]
+    severity: medium
+    mitre_id: T1134
+    mitre_tactic: Privilege Escalation
+    kill_chain_stage: Privilege Escalation
+    confidence: 50
+    description: Whoami with privilege flags — enumerating current token privileges
+
+  - rule_id: DET-020
+    name: UAC bypass via fodhelper
+    event_id: [1]
+    image_contains: fodhelper
+    parent_any: [cmd.exe, powershell.exe]
+    severity: critical
+    mitre_id: T1548.002
+    mitre_tactic: Privilege Escalation
+    kill_chain_stage: Privilege Escalation
+    confidence: 85
+    description: FodHelper UAC bypass — elevates to admin without UAC prompt
+
+  - rule_id: DET-021
+    name: Named pipe creation or access
+    event_id: [17, 18]
+    severity: high
+    mitre_id: T1134.001
+    mitre_tactic: Privilege Escalation
+    kill_chain_stage: Privilege Escalation
+    confidence: 65
+    description: Named pipe created or connected — possible token impersonation
+
+  # --- DEFENSE EVASION ---
+  - rule_id: DET-022
+    name: Windows Defender disabled via registry
+    event_id: [12, 13]
+    path_prefix_any:
+      - "hklm\\software\\policies\\microsoft\\windows defender"
+      - "hklm\\software\\microsoft\\windows defender\\real-time protection"
+    severity: critical
+    mitre_id: T1562.001
+    mitre_tactic: Defense Evasion
+    kill_chain_stage: Defense Evasion
+    confidence: 90
+    description: Windows Defender disabled — removing endpoint protection before payload delivery
+
+  - rule_id: DET-023
+    name: Event log cleared
+    event_id: [1]
+    image_any: [wevtutil.exe]
+    cmd_any: ["cl ", "clear-log"]
+    severity: critical
+    mitre_id: T1070.001
+    mitre_tactic: Defense Evasion
+    kill_chain_stage: Defense Evasion
+    confidence: 90
+    description: Windows event log cleared — attacker destroying forensic evidence
+
+  - rule_id: DET-024
+    name: Shadow copies deleted
+    event_id: [1]
+    cmd_any: ["shadowcopy delete", "delete shadows", "vssadmin delete"]
+    severity: critical
+    mitre_id: T1490
+    mitre_tactic: Impact
+    kill_chain_stage: Actions on Objectives
+    confidence: 95
+    description: VSS shadow copies deleted — pre-ransomware indicator or anti-forensics
+
+  - rule_id: DET-025
+    name: System binary masquerading
+    event_id: [1]
+    image_any: [svchost.exe, lsass.exe, csrss.exe, explorer.exe]
+    parent_any: [cmd.exe, powershell.exe, wscript.exe, cscript.exe]
+    severity: critical
+    mitre_id: T1036.005
+    mitre_tactic: Defense Evasion
+    kill_chain_stage: Defense Evasion
+    confidence: 95
+    description: Critical system process spawned by scripting engine — masquerading indicator
+
+  - rule_id: DET-026
+    name: AMSI bypass attempt
+    event_id: [1]
+    image_contains: powershell
+    cmd_any: ["amsi", "reflection.assembly", "scriptblock"]
+    severity: high
+    mitre_id: T1562.001
+    mitre_tactic: Defense Evasion
+    kill_chain_stage: Defense Evasion
+    confidence: 80
+    description: Possible AMSI bypass in PowerShell command
+
+  - rule_id: DET-027
+    name: Firewall disabled via netsh
+    event_id: [1]
+    image_contains: netsh
+    cmd_any: ["firewall set opmode disable", "advfirewall set allprofiles state off"]
+    severity: critical
+    mitre_id: T1562.004
+    mitre_tactic: Defense Evasion
+    kill_chain_stage: Defense Evasion
+    confidence: 95
+    description: Windows Firewall disabled — removing network protection before C2
+
+  - rule_id: DET-054
+    name: Shell spawned from unusual parent
+    event_id: [1]
+    image_any: [cmd.exe, powershell.exe]
+    parent_any: [msiexec.exe, winlogon.exe, smss.exe, taskhost.exe, taskhostw.exe]
+    severity: high
+    mitre_id: T1036
+    mitre_tactic: Defense Evasion
+    kill_chain_stage: Defense Evasion
+    confidence: 75
+    description: Shell spawned from unusual parent — masquerading or process hijacking
+
+  # --- CREDENTIAL ACCESS ---
+  - rule_id: DET-028
+    name: LSASS memory access
+    event_id: [10]
+    path_prefix_any: ["c:\\windows\\system32\\lsass.exe"]
+    severity: critical
+    mitre_id: T1003.001
+    mitre_tactic: Credential Access
+    kill_chain_stage: Privilege Escalation
+    confidence: 90
+    description: Process opened handle to LSASS — credential dumping attempt
+
+  - rule_id: DET-029
+    name: Credential dumping tools
+    event_id: [1]
+    cmd_any: ["sekurlsa", "lsadump", "kerberoast", "dcsync", "mimikatz", "invoke-mimikatz"]
+    severity: critical
+    mitre_id: T1003
+    mitre_tactic: Credential Access
+    kill_chain_stage: Privilege Escalation
+    confidence: 95
+    description: Credential dumping tool keywords in command line
+
+  - rule_id: DET-030
+    name: SAM database access
+    event_id: [11, 12, 13]
+    path_prefix_any:
+      - "c:\\windows\\system32\\config\\sam"
+      - "c:\\windows\\system32\\config\\system"
+      - "c:\\windows\\system32\\config\\security"
+    severity: critical
+    mitre_id: T1003.002
+    mitre_tactic: Credential Access
+    kill_chain_stage: Privilege Escalation
+    confidence: 90
+    description: SAM/SYSTEM hive accessed — offline credential dumping from registry
+
+  # --- DISCOVERY ---
+  - rule_id: DET-032
+    name: System information discovery
+    event_id: [1]
+    image_any: [systeminfo.exe]
+    severity: low
+    mitre_id: T1082
+    mitre_tactic: Discovery
+    kill_chain_stage: Execution
+    confidence: 35
+    description: Systeminfo executed — system configuration enumeration
+
+  - rule_id: DET-033
+    name: Network enumeration via net.exe
+    event_id: [1]
+    image_any: [net.exe, net1.exe]
+    cmd_any: ["view", "user", "localgroup", "share", "session"]
+    severity: medium
+    mitre_id: T1018
+    mitre_tactic: Discovery
+    kill_chain_stage: Execution
+    confidence: 50
+    description: Net.exe used for network enumeration — pre-lateral movement
+
+  - rule_id: DET-034
+    name: Port scanning tool execution
+    event_id: [1]
+    image_any: [nmap.exe, netscan.exe, masscan.exe]
+    severity: high
+    mitre_id: T1046
+    mitre_tactic: Discovery
+    kill_chain_stage: Execution
+    confidence: 85
+    description: Network scanner executed — active port/host discovery
+
+  - rule_id: DET-035
+    name: Domain trust enumeration
+    event_id: [1]
+    image_contains: nltest
+    cmd_any: ["/domain_trusts", "/dclist", "/server"]
+    severity: medium
+    mitre_id: T1482
+    mitre_tactic: Discovery
+    kill_chain_stage: Execution
+    confidence: 60
+    description: Nltest enumerating domain trusts — pre-lateral movement reconnaissance
+
+  # --- LATERAL MOVEMENT ---
+  - rule_id: DET-036
+    name: PsExec remote execution
+    event_id: [1]
+    image_any: [psexec.exe, psexec64.exe]
+    severity: high
+    mitre_id: T1569.002
+    mitre_tactic: Lateral Movement
+    kill_chain_stage: Command and Control
+    confidence: 80
+    description: PsExec executed — remote command execution for lateral movement
+
+  - rule_id: DET-037
+    name: Remote service via SMB path
+    event_id: [1]
+    image_any: [sc.exe]
+    cmd_any: ["\\\\", "/s "]
+    severity: high
+    mitre_id: T1021.002
+    mitre_tactic: Lateral Movement
+    kill_chain_stage: Command and Control
+    confidence: 65
+    description: Remote service operations via UNC path — lateral movement via SMB
+
+  - rule_id: DET-038
+    name: WMIC remote node targeting
+    event_id: [1]
+    image_contains: wmic
+    cmd_any: ["/node:", "process call create"]
+    severity: high
+    mitre_id: T1021.006
+    mitre_tactic: Lateral Movement
+    kill_chain_stage: Command and Control
+    confidence: 70
+    description: WMIC targeting remote node — WMI-based lateral movement
+
+  # --- COMMAND AND CONTROL ---
+  - rule_id: DET-039
+    name: LOLBin outbound network connection
+    event_id: [3]
+    image_any:
+      - powershell.exe
+      - cmd.exe
+      - certutil.exe
+      - bitsadmin.exe
+      - mshta.exe
+      - regsvr32.exe
+      - rundll32.exe
+      - wscript.exe
+      - cscript.exe
+    severity: high
+    mitre_id: T1071.001
+    mitre_tactic: Command and Control
+    kill_chain_stage: Command and Control
+    confidence: 65
+    description: LOLBin making outbound network connection — possible C2 channel
+
+  - rule_id: DET-040
+    name: DNS query from scripting engine
+    event_id: [22]
+    image_any: [powershell.exe, cmd.exe, mshta.exe, regsvr32.exe, rundll32.exe]
+    severity: medium
+    mitre_id: T1071.004
+    mitre_tactic: Command and Control
+    kill_chain_stage: Command and Control
+    confidence: 50
+    description: DNS resolution by scripting engine — possible DNS-based C2
+
+  - rule_id: DET-041
+    name: BITSAdmin file download
+    event_id: [1]
+    image_contains: bitsadmin
+    cmd_any: ["/transfer", "/download", "/addfile"]
+    severity: high
+    mitre_id: T1197
+    mitre_tactic: Command and Control
+    kill_chain_stage: Command and Control
+    confidence: 75
+    description: BITSAdmin used for file download — BITS abuse bypassing web proxies
+
+  - rule_id: DET-042
+    name: File dropped to staging location
+    event_id: [11]
+    path_prefix_any:
+      - "c:\\windows\\temp\\"
+      - "c:\\programdata\\"
+      - "c:\\users\\public\\"
+    severity: medium
+    mitre_id: T1105
+    mitre_tactic: Command and Control
+    kill_chain_stage: Command and Control
+    confidence: 40
+    description: File written to staging location — payload dropped to disk
+
+  - rule_id: DET-055
+    name: PowerShell file written to sensitive path
+    event_id: [11]
+    image_contains: powershell
+    path_prefix_any:
+      - "c:\\users\\"
+      - "c:\\programdata\\"
+      - "c:\\windows\\temp\\"
+    severity: high
+    mitre_id: T1059.001
+    mitre_tactic: Execution
+    kill_chain_stage: Execution
+    confidence: 65
+    description: PowerShell wrote file to user/temp directory — dropper activity
+
+  - rule_id: DET-056
+    name: LOLBin DNS resolution
+    event_id: [22]
+    image_any: [certutil.exe, bitsadmin.exe, mshta.exe, regsvr32.exe, installutil.exe]
+    severity: high
+    mitre_id: T1071.004
+    mitre_tactic: Command and Control
+    kill_chain_stage: Command and Control
+    confidence: 70
+    description: LOLBin performing DNS lookup — suspicious network activity
+
+  - rule_id: DET-057
+    name: Injection with external C2 (process injection + network)
+    event_id: [8, 3]
+    severity: critical
+    mitre_id: T1055
+    mitre_tactic: Privilege Escalation
+    kill_chain_stage: Command and Control
+    confidence: 95
+    description: Process injection combined with external network — injected C2 beacon
+    conditions:
+      - field: has_injection
+        operator: "=="
+        value: true
+      - field: has_net
+        operator: "=="
+        value: true
+
+  # --- EXFILTRATION ---
+  - rule_id: DET-043
+    name: Password-protected archive creation
+    event_id: [1]
+    image_any: [7z.exe, winrar.exe, zip.exe]
+    cmd_any: ["-p", "a -"]
+    severity: medium
+    mitre_id: T1560.001
+    mitre_tactic: Exfiltration
+    kill_chain_stage: Actions on Objectives
+    confidence: 55
+    description: Archive with password flag — data compressed before exfiltration
+
+  - rule_id: DET-044
+    name: FTP or SCP exfiltration
+    event_id: [1, 3]
+    image_any: [ftp.exe, sftp.exe, scp.exe]
+    severity: high
+    mitre_id: T1048.003
+    mitre_tactic: Exfiltration
+    kill_chain_stage: Actions on Objectives
+    confidence: 60
+    description: FTP/SCP client executed — possible data exfiltration
+
+  # --- IMPACT ---
+  - rule_id: DET-045
+    name: Mass file modification (ransomware indicator)
+    event_id: [11]
+    path_prefix_any: ["c:\\users\\", "c:\\documents\\"]
+    severity: critical
+    mitre_id: T1486
+    mitre_tactic: Impact
+    kill_chain_stage: Actions on Objectives
+    confidence: 70
+    description: Multiple file modifications in user directories — possible ransomware
+
+  - rule_id: DET-046
+    name: Critical service stopped or deleted
+    event_id: [1]
+    image_any: [net.exe, net1.exe, sc.exe]
+    cmd_any: ["stop ", "delete ", "disabled", "config"]
+    severity: high
+    mitre_id: T1489
+    mitre_tactic: Impact
+    kill_chain_stage: Actions on Objectives
+    confidence: 65
+    description: Service stopped or deleted — may be disabling AV/backup before ransomware
+
+  # --- COLLECTION ---
+  - rule_id: DET-047
+    name: Screenshot or screen capture
+    event_id: [1, 11]
+    cmd_any: ["screenshot"]
+    severity: medium
+    mitre_id: T1113
+    mitre_tactic: Collection
+    kill_chain_stage: Actions on Objectives
+    confidence: 40
+    description: Screenshot capture detected — possible collection of sensitive screen data
+
+  - rule_id: DET-048
+    name: Clipboard data access
+    event_id: [26]
+    severity: medium
+    mitre_id: T1115
+    mitre_tactic: Collection
+    kill_chain_stage: Actions on Objectives
+    confidence: 55
+    description: Clipboard content accessed — attacker collecting copied credentials

@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SentinelTrace — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{
+  --void:#060a10;--surface:#0b1220;--card:#101929;--card2:#141f30;
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);
+  --text:#e8edf5;--muted:#6b7a94;--dim:#3d4a5e;
+  --cyan:#00d4ff;--cyan2:rgba(0,212,255,.12);--cyan3:rgba(0,212,255,.06);
+  --red:#ff4757;--red2:rgba(255,71,87,.12);
+  --amber:#ffb800;--amber2:rgba(255,184,0,.12);
+  --green:#00e676;--green2:rgba(0,230,118,.1);
+  --purple:#a855f7;--purple2:rgba(168,85,247,.12);
+  --mono:'Space Mono',monospace;--sans:'DM Sans',sans-serif;
+  --r:8px;--r2:12px;--r3:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--void);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);pointer-events:none;z-index:999}
+
+/* ── Topbar ── */
+.topbar{position:sticky;top:0;z-index:200;background:rgba(6,10,16,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 28px;height:52px;display:flex;align-items:center;justify-content:space-between}
+.topbar-brand{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:13px;font-weight:700;color:var(--cyan);letter-spacing:1px;text-transform:uppercase}
+.topbar-brand::before{content:'';width:8px;height:8px;background:var(--cyan);border-radius:50%;box-shadow:0 0 8px var(--cyan);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.85)}}
+.topbar-nav{display:flex;gap:2px}
+.nav-a{color:var(--muted);text-decoration:none;font-size:12px;font-weight:500;padding:6px 14px;border-radius:var(--r);transition:all .15s}
+.nav-a:hover,.nav-a.active{color:var(--text);background:rgba(255,255,255,.06)}
+.topbar-right{display:flex;gap:10px;align-items:center;font-size:12px;color:var(--muted);font-family:var(--mono)}
+
+/* ── Layout ── */
+.page{max-width:1600px;margin:0 auto;padding:24px 28px}
+
+/* ── Action Banner (NEW) ── */
+.action-banner{border-radius:var(--r2);padding:18px 22px;margin-bottom:20px;display:flex;align-items:flex-start;gap:16px;animation:slideDown .4s ease}
+@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.action-escalate{background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.4);border-left:4px solid var(--red)}
+.action-investigate{background:rgba(255,184,0,.08);border:1px solid rgba(255,184,0,.3);border-left:4px solid var(--amber)}
+.action-monitor{background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-left:4px solid var(--cyan)}
+.action-baseline{background:rgba(0,230,118,.05);border:1px solid rgba(0,230,118,.15);border-left:4px solid var(--green)}
+.action-icon{font-size:24px;flex-shrink:0;margin-top:2px}
+.action-label{font-family:var(--mono);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.action-label.escalate{color:var(--red)}
+.action-label.investigate{color:var(--amber)}
+.action-label.monitor{color:var(--cyan)}
+.action-label.baseline{color:var(--green)}
+.action-reason{font-size:13px;color:var(--text);margin-bottom:10px}
+.action-tasks{display:flex;flex-wrap:wrap;gap:6px}
+.task-pill{padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600}
+.task-immediate{background:rgba(255,71,87,.15);color:#ff8090}
+.task-urgent{background:rgba(255,184,0,.12);color:var(--amber)}
+.task-high{background:rgba(0,212,255,.1);color:#60d8ff}
+.task-normal{background:rgba(107,122,148,.12);color:var(--muted)}
+
+/* ── Attack Narrative (NEW) ── */
+.narrative-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:20px;margin-bottom:20px;position:relative;overflow:hidden}
+.narrative-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent)}
+.narrative-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px}
+.narrative-summary{font-size:14px;font-weight:600;color:var(--text);margin-bottom:10px;line-height:1.5}
+.narrative-bullets{list-style:none;display:flex;flex-direction:column;gap:6px}
+.narrative-bullets li{font-size:12px;color:var(--muted);padding-left:12px;position:relative}
+.narrative-bullets li::before{content:'→';position:absolute;left:0;color:var(--cyan)}
+
+/* ── Alert Banner ── */
+.alert-banner{border-radius:var(--r2);padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;font-size:13px;font-weight:500;animation:slideDown .4s ease}
+.alert-danger{background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);color:#ffa0aa}
+.alert-warn{background:rgba(255,184,0,.08);border:1px solid rgba(255,184,0,.25);color:#ffd166}
+.alert-ok{background:rgba(0,230,118,.07);border:1px solid rgba(0,230,118,.2);color:#6fffb0}
+.alert-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;animation:pulse 1.5s infinite}
+.alert-danger .alert-dot{background:var(--red);box-shadow:0 0 8px var(--red)}
+.alert-warn .alert-dot{background:var(--amber)}
+.alert-ok .alert-dot{background:var(--green)}
+
+/* ── Situation Strip ── */
+.situation{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.sit-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:20px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s}
+.sit-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+.sit-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent,var(--cyan)),transparent);opacity:.6}
+.sit-card.c-red{--accent:var(--red)}
+.sit-card.c-amber{--accent:var(--amber)}
+.sit-card.c-cyan{--accent:var(--cyan)}
+.sit-card.c-green{--accent:var(--green)}
+.sit-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.sit-value{font-family:var(--mono);font-size:28px;font-weight:700;color:var(--text);line-height:1}
+.sit-sub{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4}
+.sit-badge{display:inline-block;margin-top:8px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.b-red{background:var(--red2);color:var(--red)}
+.b-amber{background:var(--amber2);color:var(--amber)}
+.b-cyan{background:var(--cyan2);color:var(--cyan)}
+.b-green{background:var(--green2);color:var(--green)}
+.b-purple{background:var(--purple2);color:var(--purple)}
+.b-gray{background:rgba(107,122,148,.15);color:var(--muted)}
+
+/* ── Section Headers ── */
+.section-hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.section-hdr h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted)}
+.section-hdr::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── Cards ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
+.card-hdr{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.card-hdr h3{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+.card-body{padding:18px}
+
+/* ── Grid Layouts ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* ── Sequence Detections (NEW) ── */
+.seq-chain{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:4px}
+.seq-hop{padding:2px 8px;border-radius:3px;font-size:10px;font-family:var(--mono);background:rgba(168,85,247,.15);color:#c084fc;border:1px solid rgba(168,85,247,.25)}
+.seq-arrow{color:var(--dim);font-size:12px}
+.seq-badge{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(168,85,247,.18);color:#c084fc;border:1px solid rgba(168,85,247,.3)}
+
+/* ── Kill Chain ── */
+.killchain{display:flex;gap:0;margin-bottom:20px}
+.kc-step{flex:1;padding:16px 14px;background:var(--card);border:1px solid var(--border);border-right:none;cursor:pointer;transition:all .2s;position:relative}
+.kc-step:first-child{border-radius:var(--r2) 0 0 var(--r2)}
+.kc-step:last-child{border-right:1px solid var(--border);border-radius:0 var(--r2) var(--r2) 0}
+.kc-step:hover,.kc-step.active{background:var(--card2);z-index:1}
+.kc-step.active{border-color:var(--cyan);border-right:1px solid var(--cyan)}
+.kc-step.active+.kc-step{border-left:none}
+.kc-stage{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+.kc-count{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--dim)}
+.kc-step.active .kc-count{color:var(--cyan)}
+.kc-step.has-data .kc-count{color:var(--text)}
+
+/* ── Tables ── */
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table th{padding:10px 14px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--dim);border-bottom:1px solid var(--border);background:rgba(0,0,0,.2)}
+.data-table td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--text)}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr{transition:background .15s}
+.data-table tr:hover td{background:rgba(255,255,255,.025)}
+.data-table td.mono{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.data-table td.link a{color:var(--cyan);text-decoration:none}
+.data-table td.link a:hover{text-decoration:underline}
+
+/* ── Confidence Bar ── */
+.conf-wrap{display:flex;align-items:center;gap:8px}
+.conf-bar{flex:1;height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;min-width:60px}
+.conf-fill{height:100%;border-radius:2px;transition:width .6s ease}
+.conf-num{font-family:var(--mono);font-size:11px;min-width:28px;text-align:right}
+.fill-red{background:var(--red)}
+.fill-amber{background:var(--amber)}
+.fill-cyan{background:var(--cyan)}
+.fill-green{background:var(--green)}
+
+/* ── Score Pills ── */
+.score-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-family:var(--mono);font-size:11px;font-weight:700}
+.score-critical{background:rgba(255,71,87,.18);color:#ff8090;border:1px solid rgba(255,71,87,.3)}
+.score-high{background:rgba(255,184,0,.15);color:#ffcd5a;border:1px solid rgba(255,184,0,.25)}
+.score-med{background:rgba(0,212,255,.1);color:#60d8ff;border:1px solid rgba(0,212,255,.2)}
+.score-low{background:rgba(107,122,148,.12);color:var(--muted);border:1px solid var(--border)}
+
+/* ── Burst Accordion ── */
+.burst-row{cursor:pointer}
+.burst-detail{display:none;background:rgba(0,0,0,.3)}
+.burst-detail.open{display:table-row}
+.burst-detail td{padding:0}
+.burst-inner{padding:16px 20px;border-top:1px solid var(--border)}
+.ledger-item{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px}
+.ledger-label{width:180px;color:var(--muted);flex-shrink:0;font-size:11px}
+.ledger-bar-wrap{flex:1;height:5px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden}
+.ledger-fill{height:100%;border-radius:3px}
+.ledger-val{font-family:var(--mono);font-size:11px;min-width:32px;text-align:right}
+
+/* ── Sub-score grid ── */
+.sub-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.sub-cell{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:6px;padding:8px 10px}
+.sub-cell-label{font-size:9px;text-transform:uppercase;color:var(--dim);letter-spacing:.5px;margin-bottom:5px}
+.sub-cell-bar{background:rgba(255,255,255,.07);border-radius:2px;height:4px;overflow:hidden;margin-bottom:3px}
+.sub-cell-fill{height:100%;border-radius:2px}
+.sub-cell-val{font-family:var(--mono);font-size:11px}
+
+/* ── Incident Panel ── */
+.inc-panel{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--cyan);border-radius:var(--r2);padding:20px;margin-bottom:20px}
+.inc-meta{display:flex;flex-wrap:wrap;gap:20px;margin-bottom:16px}
+.inc-kv label{font-size:10px;font-weight:600;color:var(--dim);text-transform:uppercase;display:block;margin-bottom:3px}
+.inc-kv span{font-family:var(--mono);font-size:13px;color:var(--text)}
+.inc-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{padding:7px 14px;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--sans)}
+.btn:hover{background:rgba(255,255,255,.06);color:var(--text)}
+.btn-primary{background:var(--cyan);color:#000;border-color:var(--cyan)}
+.btn-primary:hover{opacity:.85}
+.btn-danger{border-color:rgba(255,71,87,.4);color:var(--red)}
+.btn-danger:hover{background:var(--red2)}
+.btn-success{border-color:rgba(0,230,118,.3);color:var(--green)}
+.btn-success:hover{background:var(--green2)}
+
+/* ── Filter bar ── */
+.filter-bar{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:12px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:20px}
+.filter-bar label{font-size:11px;font-weight:600;color:var(--dim);text-transform:uppercase}
+input[type=text],select,textarea{background:rgba(0,0,0,.4);color:var(--text);border:1px solid var(--border);border-radius:var(--r);padding:7px 12px;font-size:12px;font-family:var(--sans);transition:border-color .2s}
+input[type=text]:focus,select:focus,textarea:focus{outline:none;border-color:var(--cyan)}
+select option{background:#0b1220}
+
+/* ── MITRE pill ── */
+.mitre-pill{display:inline-block;padding:2px 8px;border-radius:4px;font-family:var(--mono);font-size:10px;color:var(--cyan);background:var(--cyan2);border:1px solid rgba(0,212,255,.2)}
+
+/* ── Charts ── */
+.chart-wrap{position:relative;height:200px}
+
+/* ── Live Stream table ── */
+#alertsBody tr,#recentEventsBody tr{animation:fadeRow .3s ease}
+@keyframes fadeRow{from{opacity:0;background:rgba(0,212,255,.08)}to{opacity:1;background:transparent}}
+
+/* ── Collapsible ── */
+.collapsible-hdr{cursor:pointer;padding:13px 16px;background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:var(--r);margin-top:12px;font-size:12px;font-weight:600;color:var(--muted);display:flex;align-items:center;justify-content:space-between;transition:all .15s}
+.collapsible-hdr:hover{color:var(--text);border-color:var(--border2)}
+.collapsible-hdr .chev{transition:transform .25s}
+.collapsible-hdr.open .chev{transform:rotate(180deg)}
+.collapsible-body{display:none;padding:16px;border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);background:rgba(0,0,0,.15)}
+.collapsible-body.open{display:block;animation:fadeIn .25s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Response tasks (NEW) ── */
+.tasks-grid{display:flex;flex-direction:column;gap:6px}
+.task-item{display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(0,0,0,.2);border-radius:6px;font-size:12px}
+.task-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2)}
+
+/* ── Entry animations ── */
+.fade-up{opacity:0;transform:translateY(16px);animation:fadeUp .5s ease forwards}
+@keyframes fadeUp{to{opacity:1;transform:translateY(0)}}
+.d1{animation-delay:.05s}.d2{animation-delay:.1s}.d3{animation-delay:.15s}.d4{animation-delay:.2s}.d5{animation-delay:.25s}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">⬡ SentinelTrace</div>
+  <nav class="topbar-nav">
+    <a href="{{ url_for('welcome_page') }}" class="nav-a">Home</a>
+    <a href="{{ url_for('dashboard', run_id=run_id) }}" class="nav-a active">Dashboard</a>
+    <a href="{{ url_for('triage_queue') }}" class="nav-a">Investigation</a>
+    <a href="{{ url_for('triage_queue') }}" class="nav-a">Triage</a>
+    <a href="{{ url_for('hunt_console') }}" class="nav-a">Hunt</a>
+  </nav>
+  <div class="topbar-right">
+    <span style="color:var(--dim)">run:</span>
+    <span>{{ run_id[:12] }}…</span>
+    <span style="margin-left:6px;color:var(--dim)">{{ total_events | default(0) }} events</span>
+  </div>
+</div>
+
+<div class="page">
+
+  {# ══════════════════════════════════════════════════════════════════ #}
+  {# BLOCK 1: RECOMMENDED ACTION (NEW — replaces generic alert banner) #}
+  {# ══════════════════════════════════════════════════════════════════ #}
+  {% set action = recommended_action | default('BASELINE') %}
+  {% set action_class = {
+      'ESCALATE':    'action-escalate',
+      'INVESTIGATE': 'action-investigate',
+      'MONITOR':     'action-monitor',
+      'BASELINE':    'action-baseline',
+  }.get(action, 'action-baseline') %}
+  {% set action_icon = {
+      'ESCALATE':    '🔴',
+      'INVESTIGATE': '🟠',
+      'MONITOR':     '🔵',
+      'BASELINE':    '🟢',
+  }.get(action, '🟢') %}
+
+  <div class="action-banner {{ action_class }} fade-up">
+    <div class="action-icon">{{ action_icon }}</div>
+    <div style="flex:1">
+      <div class="action-label {{ action | lower }}">Recommended Action: {{ action }}</div>
+      <div class="action-reason">{{ action_reason | default('Analysis complete.') }}</div>
+      {% if response_tasks %}
+      <div class="action-tasks">
+        {% for task in response_tasks[:5] %}
+        <span class="task-pill task-{{ task.priority | default('normal') }}">{{ task.task }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    <div style="font-family:var(--mono);font-size:11px;color:var(--muted);flex-shrink:0">
+      Priority: {{ action_priority | default('P4') }}
+    </div>
+  </div>
+
+  {% if attack_conf_basis %}
+  <div class="card fade-up d1" style="margin-top:12px;margin-bottom:18px;border-color:rgba(47,129,247,.2);background:rgba(47,129,247,.04)">
+    <div class="card-body" style="padding:16px 18px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim);margin-bottom:10px">Why it escalated</div>
+      <div style="display:grid;gap:8px">
+        {% for basis in attack_conf_basis[:6] %}
+        <div style="padding-left:10px;border-left:2px solid var(--cyan);font-size:12px;color:var(--text-main);line-height:1.45">{{ basis }}</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ══════════════════════════════════════════════════════════════════ #}
+  {# BLOCK 2: ATTACK NARRATIVE (NEW)                                   #}
+  {# ══════════════════════════════════════════════════════════════════ #}
+  {% if attack_narrative and attack_narrative.is_attack %}
+  <div class="narrative-card fade-up d1">
+    <div class="narrative-title">Attack Story</div>
+    <div class="narrative-summary">{{ attack_narrative.summary }}</div>
+    {% if attack_narrative.bullets %}
+    <ul class="narrative-bullets">
+      {% for bullet in attack_narrative.bullets %}
+      <li>{{ bullet }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ── Situation Strip ── #}
+  <div class="situation fade-up d1">
+    <div class="sit-card c-{% if (attack_conf_score or 0) >= 75 %}red{% elif (attack_conf_score or 0) >= 45 %}amber{% else %}cyan{% endif %}">
+      <div class="sit-label">Threat Posture</div>
+      <div class="sit-value">{{ attack_conf_level | default('None') }}</div>
+      <div class="sit-sub">{{ attack_conf_score | default(0) }}/100 confidence</div>
+      <span class="sit-badge b-{% if (attack_conf_score or 0) >= 75 %}red{% elif (attack_conf_score or 0) >= 45 %}amber{% else %}cyan{% endif %}">
+        {{ highest_kill_chain | default('No kill chain') }}
+      </span>
+    </div>
+    <div class="sit-card">
+      <div class="sit-label">Event Volume</div>
+      <div class="sit-value">{{ total_events | default(0) }}</div>
+      <div class="sit-sub">
+        <span style="color:var(--red)">{{ high_count | default(0) }} high</span> ·
+        <span style="color:var(--amber)">{{ medium_count | default(0) }} med</span> ·
+        <span style="color:var(--green)">{{ low_count | default(0) }} low</span>
+      </div>
+    </div>
+    <div class="sit-card">
+      <div class="sit-label">Active Incidents</div>
+      <div class="sit-value" style="color:{% if incidents %}var(--amber){% else %}var(--dim){% endif %}">{{ incidents | length }}</div>
+      <div class="sit-sub">
+        {{ incidents | selectattr('status', 'defined') | selectattr('status', 'equalto', 'New') | list | length }} unreviewed
+      </div>
+      <span class="sit-badge b-purple">{{ sequence_detections | length }} chain logic</span>
+    </div>
+    <div class="sit-card c-{% if action == 'ESCALATE' %}red{% elif action == 'INVESTIGATE' %}amber{% elif action == 'MONITOR' %}cyan{% else %}green{% endif %}">
+      <div class="sit-label">Analyst Action</div>
+      <div class="sit-value" style="font-size:18px;color:{% if action == 'ESCALATE' %}var(--red){% elif action == 'INVESTIGATE' %}var(--amber){% elif action == 'MONITOR' %}var(--cyan){% else %}var(--green){% endif %}">
+        {{ action }}
+      </div>
+      <div class="sit-sub">Priority {{ action_priority | default('P4') }}</div>
+    </div>
+  </div>
+
+  {# ── Top Incidents (Phase 1 Hardened) ── #}
+  {% if pipeline_error %}
+    <div class="alert alert-danger" style="margin: 10px 0; padding: 10px; background: rgba(248, 113, 113, 0.1); border: 1px solid var(--red); border-radius: 4px; color: var(--red); font-weight: 500;">
+      ⚠️ {{ pipeline_error }}
+    </div>
+  {% endif %}
+
+  <div class="section-hdr fade-up d2"><h2>Top Incidents</h2></div>
+  <div class="card fade-up d2" style="margin-bottom:20px">
+    <div class="card-body" style="padding:0">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Host</th>
+            <th>Process</th>
+            <th>Risk</th>
+            <th>Status</th>
+            <th>Priority</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inc in incidents[:10] %}
+          <tr>
+            <td class="mono" style="color:var(--cyan)">{{ inc.incident_id }}</td>
+            <td>{{ inc.computer or 'Unknown' }}</td>
+            <td style="font-weight:500">
+              {{ (inc.get('image') or 'Unknown').split('\\')[-1].split('/')[-1] }}
+              <div style="font-size:10px;color:var(--dim);font-weight:400">{{ inc.kill_chain_stage or 'Unknown' }}</div>
+            </td>
+            <td>
+              {% set score = inc.get('attack_conf_score') or inc.get('risk_score') | default(0, true) %}
+              <span class="score-pill score-{% if score >= 70 %}critical{% elif score >= 40 %}high{% else %}med{% endif %}">
+                {{ score|round(0)|int }}/100
+              </span>
+            </td>
+            <td>
+              {% set st = inc.status or '' %}
+              <span class="sit-badge b-{% if st == 'New' %}cyan{% elif 'Closed' in st %}green{% else %}amber{% endif %}">
+                {{ st or 'Unknown' }}
+              </span>
+            </td>
+            <td><span class="sit-badge b-gray">{{ inc.priority or 'P4' }}</span></td>
+            <td class="link"><a href="{{ url_for('details') }}">Investigate →</a></td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" style="text-align:center; padding: 48px; color: var(--dim); opacity: 0.7;">
+              <div style="font-size: 32px; margin-bottom: 12px; opacity: 0.5;">🔍</div>
+              <div style="font-weight: 500; color: var(--text-main);">No incidents detected in the current queue</div>
+              <div style="font-size: 13px; margin-top: 4px;">Run a new analysis or adjust your filters to see results.</div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ── Filter Bar ── #}
+  <form class="filter-bar fade-up d2">
+    <label>Filter</label>
+    <input type="text" name="q" value="{{ q | default('') }}" placeholder="image:powershell AND sev:high" style="width:280px;font-family:var(--mono)">
+    <label style="margin-left:8px">Time</label>
+    <select name="time_range">
+      <option value="all" {% if time_range=='all' %}selected{% endif %}>All time</option>
+      <option value="1h" {% if time_range=='1h' %}selected{% endif %}>Last 1h</option>
+      <option value="24h" {% if time_range=='24h' %}selected{% endif %}>Last 24h</option>
+    </select>
+    <button type="submit" class="btn btn-primary">Apply</button>
+    <a href="{{ url_for('dashboard', run_id=run_id) }}" class="btn" style="margin-left:auto">Reset</a>
+    <a href="{{ url_for('raw_events') }}" class="btn">Raw Events</a>
+  </form>
+
+  {# ══════════════════════════════════════════════════════════════════ #}
+  {# BLOCK 3: SEQUENCE CHAIN DETECTIONS (NEW)                          #}
+  {# ══════════════════════════════════════════════════════════════════ #}
+  {% set seq_dets = sequence_detections | default([]) %}
+  {% if seq_dets %}
+  <div class="section-hdr fade-up d2"><h2>Attack chain detections (sequence engine)</h2></div>
+  <div class="card fade-up d2" style="margin-bottom:14px">
+    <div class="card-body" style="padding:0">
+      <table class="data-table">
+        <thead><tr><th>Pattern</th><th>Attack Chain</th><th>Kill Chain</th><th>Confidence</th><th>Host</th></tr></thead>
+        <tbody>
+        {% for sd in seq_dets[:10] %}
+        {% set sc = sd.confidence_score | default(sd.confidence) | default(0) %}
+        <tr>
+          <td>
+            <span class="seq-badge">{{ sd.pattern_id }}</span>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px">{{ sd.rule_name }}</div>
+          </td>
+          <td>
+            <div class="seq-chain">
+              {% for hop in (sd.chain_str or '').split(' → ') %}
+              <span class="seq-hop">{{ hop }}</span>
+              {% if not loop.last %}<span class="seq-arrow">→</span>{% endif %}
+              {% endfor %}
+            </div>
+          </td>
+          <td><span class="score-pill score-{% if sd.kill_chain_stage in ['Actions on Objectives','Command and Control'] %}critical{% elif sd.kill_chain_stage in ['Persistence','Privilege Escalation','Lateral Movement'] %}high{% else %}med{% endif %}">{{ sd.kill_chain_stage }}</span></td>
+          <td>
+            <div class="conf-wrap">
+              <div class="conf-bar"><div class="conf-fill fill-{% if sc >= 70 %}red{% elif sc >= 40 %}amber{% else %}cyan{% endif %}" style="width:{{ sc }}%"></div></div>
+              <div class="conf-num">{{ sc }}</div>
+            </div>
+          </td>
+          <td class="mono">{{ sd.computer | default('—') }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Kill Chain ── #}
+  <div class="section-hdr fade-up d2"><h2>Kill chain progression</h2></div>
+  {% set kc_map = {} %}{% for kc in kill_chain_summary %}{% set _ = kc_map.update({kc.stage: kc.count}) %}{% endfor %}
+  <div class="killchain fade-up d3">
+    {% for stage in ['Execution','Persistence','Lateral Movement','Command and Control','Actions on Objectives'] %}
+    {% set cnt = kc_map.get(stage, 0) %}
+    <div class="kc-step {% if cnt %}has-data{% endif %} {% if stage == highest_kill_chain %}active{% endif %}" onclick="location.href='?kill_chain_stage={{ stage | urlencode }}'">
+      <div class="kc-stage">{{ stage }}</div>
+      <div class="kc-count">{{ cnt or '—' }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ── Charts ── #}
+  <div class="grid-2 fade-up d3" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-hdr"><h3>Event volume per hour</h3></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="epsChart"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><h3>Event distribution</h3></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+          <div><div class="sit-label">High severity</div><div style="font-family:var(--mono);font-size:26px;color:var(--red)">{{ high_count | default(0) }}</div></div>
+          <div><div class="sit-label">Medium severity</div><div style="font-family:var(--mono);font-size:26px;color:var(--amber)">{{ medium_count | default(0) }}</div></div>
+        </div>
+        <div class="chart-wrap" style="height:130px"><canvas id="sevChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Response Tasks (NEW — if ESCALATE/INVESTIGATE) ── #}
+  {% if response_tasks and action in ('ESCALATE', 'INVESTIGATE') %}
+  <div class="section-hdr fade-up d3"><h2>Response checklist</h2></div>
+  <div class="card fade-up d3" style="margin-bottom:14px">
+    <div class="card-body">
+      <div class="tasks-grid">
+        {% for task in response_tasks %}
+        {% set dot_col = 'var(--red)' if task.priority == 'immediate' else 'var(--amber)' if task.priority == 'urgent' else 'var(--cyan)' if task.priority == 'high' else 'var(--dim)' %}
+        <div class="task-item">
+          <div class="task-dot" style="background:{{ dot_col }}"></div>
+          <span style="flex:1">{{ task.task }}</span>
+          <span style="font-size:10px;color:var(--dim);font-family:var(--mono)">{{ task.priority }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── MITRE ATT&CK ── #}
+  {% if mitre_summary %}
+  <div class="section-hdr fade-up d3"><h2>MITRE ATT&CK</h2></div>
+  <div class="card fade-up d3" style="margin-bottom:14px">
+    <div class="card-body" style="padding:0">
+      <table class="data-table">
+        <thead><tr><th>Tactic</th><th>Technique</th><th>Detections</th></tr></thead>
+        <tbody>
+        {% for row in mitre_summary[:15] %}
+        <tr style="cursor:pointer" onclick="location.href='?mitre_id={{ row.mitre_id }}'">
+          <td>{{ row.mitre_tactic }}</td>
+          <td><span class="mitre-pill">{{ row.mitre_id }}</span></td>
+          <td class="mono">{{ row.count }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" style="color:var(--dim);font-style:italic;padding:20px">No detections.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Correlation Campaigns ── #}
+  {% if correlation_campaigns %}
+  <div class="section-hdr fade-up d3"><h2>Correlation campaigns</h2></div>
+  <div class="card fade-up d3" style="margin-bottom:14px">
+    <div class="card-body" style="padding:0">
+      <table class="data-table">
+        <thead><tr><th>Campaign Identity</th><th>Base Image</th><th>Highest Stage</th><th>Confidence</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for c in correlation_campaigns %}
+        <tr>
+          <td>
+            <div style="font-weight:600;color:var(--text-main)">{{ c.campaign_name | default(c.corr_id) }}</div>
+            <div style="font-size:10px;color:var(--dim);font-family:var(--mono);margin-top:2px">{{ (c.corr_id|string)[:24] }}</div>
+          </td>
+          <td>{{ c.base_image }}</td>
+          <td><span class="score-pill score-{% if c.highest_kill_chain in ['Actions on Objectives','Command and Control'] %}critical{% elif c.highest_kill_chain in ['Persistence','Privilege Escalation','Lateral Movement'] %}high{% else %}med{% endif %}">{{ c.highest_kill_chain }}</span></td>
+          <td>
+            <div class="conf-wrap">
+              <div class="conf-bar"><div class="conf-fill fill-{% if c.max_confidence >= 70 %}red{% elif c.max_confidence >= 40 %}amber{% else %}cyan{% endif %}" style="width:{{ c.max_confidence }}%"></div></div>
+              <div class="conf-num">{{ c.max_confidence }}</div>
+            </div>
+          </td>
+          <td><span class="sit-badge b-{% if c.status == 'active' %}green{% else %}gray{% endif %}">{{ c.status }}</span></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Attack Timeline / Burst Aggregates ── #}
+  <div class="section-hdr fade-up d4"><h2>Attack timeline — top threats</h2></div>
+  <div class="card fade-up d4" style="margin-bottom:14px">
+    <div class="card-body" style="padding:0">
+      {% if burst_aggregates %}
+      <table class="data-table">
+        <thead><tr><th>Image</th><th>Kill Chain</th><th>Events</th><th>Score</th><th>Primary Driver</th><th>Context</th><th></th></tr></thead>
+        <tbody>
+        {% for b in burst_aggregates %}
+        {% set sc = b.peak_score | default(0) %}
+        {% set sc_cls = 'critical' if sc >= 70 else 'high' if sc >= 40 else 'med' if sc > 0 else 'low' %}
+        {% set dev = ((b.deviation_score | default(0)) * 100) | int %}
+        <tr class="burst-row" onclick="toggleBurst('ba{{ loop.index }}')">
+          <td style="font-weight:500">
+            {{ b.image }}
+            {% if b._never_learn %}<span class="sit-badge b-red" style="margin-left:4px;font-size:9px">🔒</span>{% endif %}
+            {% if b.has_correlation %}<span class="sit-badge b-purple" style="margin-left:4px;font-size:9px">Campaign</span>{% endif %}
+          </td>
+          <td>
+            <span class="score-pill score-{{ sc_cls }}">
+              {{ b.kill_chain_stage or 'Exec' }}
+            </span>
+          </td>
+          <td class="mono">{{ b.total_count }}</td>
+          <td>
+            <span class="score-pill score-{{ sc_cls }}">{{ sc }}/100</span>
+          </td>
+          <td>
+            {% set driver_map = {
+              'behavior': 'Behavioral Anomaly',
+              'correlation': 'Campaign Correlation',
+              'rarity': 'Rare Execution',
+              'sequence': 'Attack Pattern',
+              'rule': 'Static Detection',
+              'stealth': 'Stealth Pattern',
+              'mixed': 'Mixed Signals'
+            } %}
+            <span class="sit-badge {% if b.primary_driver == 'behavior' %}b-amber{% elif b.primary_driver == 'rule' %}b-cyan{% elif b.primary_driver == 'rarity' %}b-purple{% elif b.primary_driver == 'correlation' %}b-green{% elif b.primary_driver == 'stealth' %}b-red{% elif b.primary_driver == 'sequence' %}b-purple{% else %}b-gray{% endif %}" style="text-transform:uppercase;font-size:10px">
+              {{ driver_map.get(b.primary_driver, b.primary_driver | default('Mixed')) }}
+            </span>
+          </td>
+          <td>
+            <div style="font-size:11px;color:var(--muted)">
+              {% if b.baseline_count %}{{ b.baseline_count }} samples{% else %}New Host{% endif %}
+              {% if b.chain_depth and b.chain_depth > 1 %} · <span style="color:var(--purple)">{{ b.chain_depth }}× chain</span>{% endif %}
+            </div>
+          </td>
+          <td style="color:var(--cyan);font-size:11px">▾</td>
+        </tr>
+        <tr id="ba{{ loop.index }}" class="burst-detail">
+          <td colspan="7">
+            <div class="burst-inner">
+              <div style="font-size:10px;color:var(--cyan);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700">Why this alert fired (Primary Driver: {{ b.primary_driver | default('Mixed') | upper }})</div>
+              {% if b.score_why %}
+                <ul style="list-style:none;padding:0;margin-bottom:12px">
+                {% for line in b.score_why %}
+                  <li style="font-size:12px;color:var(--text);margin-bottom:4px;line-height:1.4">{{ line }}</li>
+                {% endfor %}
+                </ul>
+              {% endif %}
+              
+              <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Detailed Contribution Ledger</div>
+              {% for entry in b.score_ledger %}{% if entry.delta and entry.delta != 0 %}
+              <div class="ledger-item">
+                <div class="ledger-label">{{ entry.label }}</div>
+                <div class="ledger-bar-wrap"><div class="ledger-fill" style="width:{{ [([entry.delta|abs, 40]|min) * 2, 3]|max }}%;background:{% if entry.delta >= 20 %}var(--red){% elif entry.delta >= 10 %}var(--amber){% elif entry.delta > 0 %}var(--cyan){% else %}var(--dim){% endif %}"></div></div>
+                <div class="ledger-val" style="color:{% if entry.delta >= 20 %}var(--red){% elif entry.delta >= 10 %}var(--amber){% elif entry.delta > 0 %}var(--cyan){% else %}var(--dim){% endif %}">{{ entry.delta | round(1) }}</div>
+              </div>
+              {% endif %}{% endfor %}
+              {% if b.baseline_anomalies and b.baseline_anomalies|length > 0 %}
+              <div style="margin-top:10px;background:rgba(255,184,0,.06);border:1px solid rgba(255,184,0,.2);border-radius:6px;padding:8px 10px">
+                <div style="font-size:9px;color:var(--amber);font-weight:700;text-transform:uppercase;margin-bottom:5px">Behavioral Anomalies</div>
+                {% for a in b.baseline_anomalies %}<div style="font-size:11px;color:var(--amber);margin-bottom:2px;opacity:.8">• {{ a }}</div>{% endfor %}
+              </div>
+              {% endif %}
+              {% if b.burst_id %}
+              <div style="margin-top:10px"><a href="{{ url_for('burst_view', burst_id=b.burst_id) }}" class="btn btn-primary" style="font-size:11px">→ Burst Detail</a></div>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div style="padding:32px;text-align:center;color:var(--dim)">No timeline data available.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── LOLBins ── #}
+  {% if lolbins_summary %}
+  <div class="section-hdr fade-up d4" style="margin-top:20px"><h2>LOLBin summary</h2></div>
+  <div class="card fade-up d4" style="margin-bottom:14px">
+    <div class="card-body" style="padding:0">
+      <table class="data-table">
+        <thead><tr><th>Image</th><th>Executions</th><th>Unique cmds</th><th>Abnormal parents</th><th>Verdict</th></tr></thead>
+        <tbody>
+        {% for row in lolbins_summary %}
+        <tr>
+          <td style="font-weight:500">{{ row.image }}</td>
+          <td class="mono">{{ row.executions }}</td>
+          <td class="mono">{{ row.unique_command_lines }}</td>
+          <td class="mono" style="color:{% if row.abnormal_parents > 0 %}var(--red){% else %}var(--muted){% endif %}">{{ row.abnormal_parents }}</td>
+          <td><span class="sit-badge b-{% if row.verdict == 'suspicious' %}red{% elif row.verdict == 'likely benign' or 'benign' in row.verdict %}green{% else %}amber{% endif %}">{{ row.verdict }}</span></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {# Live Feed Removed in Phase 1 #}
+
+</div><!-- /page -->
+
+<script>
+function toggleBurst(id){const r=document.getElementById(id);if(r)r.classList.toggle('open')}
+function toggleColl(hdr){hdr.classList.toggle('open');const b=hdr.nextElementSibling;if(b)b.classList.toggle('open')}
+
+document.addEventListener('DOMContentLoaded',function(){
+  /* EPS Chart */
+  const eph={{ events_per_hour | tojson | safe }};
+  const epsCtx=document.getElementById('epsChart');
+  if(epsCtx){
+    const eph_data=eph&&eph.length?eph:[];
+    if(eph_data.length){
+      new Chart(epsCtx,{
+        type:'line',
+        data:{labels:eph_data.map(p=>p.hour),datasets:[{label:'Events/hr',data:eph_data.map(p=>p.count),borderColor:'#00d4ff',backgroundColor:'rgba(0,212,255,.08)',borderWidth:1.5,pointRadius:2,fill:true,tension:.3}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#3d4a5e',font:{size:10},maxTicksLimit:12}},y:{beginAtZero:true,ticks:{color:'#3d4a5e',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}
+      });
+    } else {
+      const cw=epsCtx.parentElement;
+      cw.style.display='flex';cw.style.alignItems='center';cw.style.justifyContent='center';
+      epsCtx.remove();
+      cw.innerHTML='<div style="color:var(--dim);font-size:12px;text-align:center">Re-upload to populate timeline</div>';
+    }
+  }
+
+  /* Severity donut */
+  const sev={{ events_by_severity | default({}) | tojson | safe }};
+  const sevCtx=document.getElementById('sevChart');
+  if(sevCtx){
+    const hv=parseInt('{{ high_count|default(0) }}')||0;
+    const mv=parseInt('{{ medium_count|default(0) }}')||0;
+    const lv=parseInt('{{ low_count|default(0) }}')||0;
+    if(hv+mv+lv>0){
+      new Chart(sevCtx,{
+        type:'doughnut',
+        data:{labels:['High','Medium','Low'],datasets:[{data:[hv,mv,lv],backgroundColor:['rgba(255,71,87,.8)','rgba(255,184,0,.8)','rgba(0,212,255,.5)'],borderWidth:0,hoverOffset:4}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'72%'}
+      });
+    } else {
+      sevCtx.style.display='none';
+    }
+  }
+
+  // Polling scripts removed in Phase 1 (Offline SOC Mode)
+});
+</script>
+</body>
+</html>

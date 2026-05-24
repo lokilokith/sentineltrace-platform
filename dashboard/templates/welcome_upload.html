@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SentinelTrace | Home</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root{--bg:#0f172a;--card:rgba(30,41,59,0.85);--border:rgba(148,163,184,0.15);--text:#f1f5f9;--muted:#94a3b8;--dim:#64748b;--blue:#60a5fa;--green:#34d399;--red:#f87171;}
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);background-image:linear-gradient(to right,rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,.03) 1px,transparent 1px);background-size:40px 40px;color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+        .topbar{background:rgba(15,23,42,.95);border-bottom:1px solid var(--border);padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);flex-shrink:0;}
+        .topbar-left{display:flex;align-items:center;gap:28px;}
+        .brand{font-size:15px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:1.5px;text-decoration:none;display:flex;align-items:center;gap:8px;}
+        .nav-links{display:flex;gap:2px;}
+        .nav-link{color:var(--muted);text-decoration:none;font-size:13px;padding:6px 14px;border-radius:6px;transition:all .15s;font-weight:500;}
+        .nav-link:hover{background:rgba(255,255,255,.06);color:var(--text);}
+        .nav-link.active{color:var(--blue);background:rgba(96,165,250,.1);}
+        .topbar-right{display:flex;align-items:center;gap:12px;}
+        .user-badge{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:20px;}
+        .user-badge .role{color:var(--dim);font-size:11px;}
+        .logout-btn{padding:6px 14px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:var(--red);border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;}
+        .logout-btn:hover{background:rgba(248,113,113,.2);}
+        .page-body{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 24px;}
+        .upload-card{display:grid;grid-template-columns:300px 1fr;background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;width:100%;max-width:980px;box-shadow:0 25px 50px rgba(0,0,0,.4);backdrop-filter:blur(20px);}
+        .sidebar{background:linear-gradient(160deg,#1e3a5f 0%,#0f2744 100%);padding:44px 32px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid rgba(96,165,250,.15);}
+        .sidebar-brand{display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+        .sidebar-brand .sicon{width:40px;height:40px;background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.3);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+        .sidebar-brand h1{font-size:19px;font-weight:700;color:#fff;}
+        .sidebar p{font-size:13px;color:rgba(255,255,255,.5);margin-bottom:28px;line-height:1.6;}
+        .feature-list{list-style:none;display:flex;flex-direction:column;gap:12px;}
+        .feature-list li{display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,.8);}
+        .feature-list li .ficon{width:24px;height:24px;background:rgba(52,211,153,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--green);font-size:11px;flex-shrink:0;}
+        .main-panel{padding:40px 36px;display:flex;flex-direction:column;}
+        .flash-msg{background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);color:var(--blue);padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;}
+        .flash-msg.error{background:rgba(248,113,113,.1);border-color:rgba(248,113,113,.25);color:var(--red);}
+        .mode-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-bottom:20px;}
+        .mode-card{background:rgba(15,23,42,.5);border:1px solid var(--border);border-radius:10px;padding:18px 20px;transition:border-color .2s;min-height:108px;display:flex;flex-direction:column;justify-content:center;}
+        .mode-card:hover{border-color:rgba(96,165,250,.3);}
+        .mode-card.featured{padding:22px 24px;}
+        .mode-card .micon{font-size:20px;margin-bottom:8px;}
+        .mode-card h3{font-size:13px;font-weight:700;color:var(--text);margin-bottom:5px;}
+        .mode-card p{font-size:12px;color:var(--muted);line-height:1.5;max-width:64ch;}
+        .action-row{display:grid;grid-template-columns:minmax(0,320px);justify-content:center;gap:10px;margin-bottom:20px;}
+        .btn{padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;border:1px solid transparent;}
+        .btn-primary{background:var(--blue);color:#000;border-color:var(--blue);}
+        .btn-primary:hover{opacity:.88;transform:translateY(-1px);}
+        .btn-outline{background:transparent;color:var(--green);border-color:rgba(52,211,153,.4);}
+        .btn-outline:hover{background:rgba(52,211,153,.08);transform:translateY(-1px);}
+        .upload-form{display:none;}
+        .upload-form.visible{display:block;}
+        .form-divider{border:none;border-top:1px solid var(--border);margin:0 0 20px;}
+        .form-section-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;}
+        .form-group{margin-bottom:16px;}
+        .form-label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;}
+        .drop-zone{border:2px dashed rgba(96,165,250,.3);border-radius:10px;padding:24px 16px;text-align:center;cursor:pointer;transition:all .2s;background:rgba(15,23,42,.4);}
+        .drop-zone:hover,.drop-zone.dzactive{border-color:var(--blue);background:rgba(96,165,250,.06);}
+        .drop-zone i{font-size:26px;color:var(--blue);margin-bottom:8px;display:block;}
+        .drop-zone h4{font-size:13px;color:var(--text);margin-bottom:3px;}
+        .drop-zone p{font-size:11px;color:var(--dim);}
+        .file-selected{display:none;align-items:center;gap:8px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);border-radius:7px;padding:8px 12px;margin-top:8px;font-size:12px;color:var(--green);}
+        .file-selected.visible{display:flex;}
+        .rules-input{width:100%;background:rgba(15,23,42,.5);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-size:13px;transition:border-color .2s;}
+        .rules-input:focus{outline:none;border-color:var(--blue);}
+        .form-hint{font-size:11px;color:var(--dim);margin-top:5px;}
+        .submit-btn{width:100%;padding:12px;background:var(--blue);color:#000;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:.5px;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;}
+        .submit-btn:hover{opacity:.88;transform:translateY(-1px);}
+    </style>
+</head>
+<body>
+
+<nav class="topbar">
+    <div class="topbar-left">
+        <a href="/" class="brand">⚡ SentinelTrace</a>
+        {% if current_user %}
+        <div class="nav-links">
+            <a href="/" class="nav-link active">Home</a>
+            <a href="/triage" class="nav-link">Triage</a>
+            <a href="/hunt" class="nav-link">Hunt</a>
+        </div>
+        {% endif %}
+    </div>
+    {% if current_user %}
+    <div class="topbar-right">
+        <div class="user-badge">
+            <i class="fas fa-user-shield" style="color:var(--blue);font-size:11px;"></i>
+            {{ current_user.username }}
+            <span class="role">({{ current_user.role }})</span>
+        </div>
+        <a href="/logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    </div>
+    {% endif %}
+</nav>
+
+<div class="page-body">
+    <div class="upload-card">
+
+        <div class="sidebar">
+            <div class="sidebar-brand">
+                <div class="sicon">🛡️</div>
+                <h1>Sysmon Analyzer</h1>
+            </div>
+            <p>Upload historical Sysmon logs for offline threat hunting, MITRE ATT&amp;CK mapping, and behavioral timeline reconstruction.</p>
+            <ul class="feature-list">
+                <li><div class="ficon"><i class="fas fa-check"></i></div> Timeline Reconstruction</li>
+                <li><div class="ficon"><i class="fas fa-check"></i></div> Process Tree Visualization</li>
+                <li><div class="ficon"><i class="fas fa-check"></i></div> MITRE ATT&amp;CK Mapping</li>
+                <li><div class="ficon"><i class="fas fa-check"></i></div> Anomaly Detection</li>
+                <li><div class="ficon"><i class="fas fa-check"></i></div> Behavioral Correlation</li>
+            </ul>
+        </div>
+
+        <div class="main-panel">
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="flash-msg {% if category == 'error' %}error{% endif %}">
+                        <i class="fas fa-{% if category == 'error' %}exclamation-circle{% else %}info-circle{% endif %}" style="margin-right:6px;"></i>{{ message }}
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="mode-grid">
+                <div class="mode-card featured">
+                    <div class="micon">📂</div>
+                    <h3>Offline Analysis</h3>
+                    <p>Upload historical Sysmon XML logs for forensic investigation, behavioral correlation, MITRE ATT&amp;CK mapping, and attack timeline reconstruction.</p>
+                </div>
+            </div>
+
+            <div class="action-row">
+                <button class="btn btn-primary" onclick="setMode('offline')" id="btn-offline">
+                    <i class="fas fa-file-upload"></i> Select Sysmon Log File
+                </button>
+            </div>
+
+            <form id="offlineForm" action="{{ url_for('setup_upload') }}" method="post" enctype="multipart/form-data" class="upload-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <hr class="form-divider">
+                <div class="form-section-title">Forensic Data Source</div>
+
+                <div class="form-group">
+                    <label class="form-label">Sysmon Event Log (XML) <span style="color:var(--red)">*</span></label>
+                    <div class="drop-zone" id="dropZone" onclick="document.getElementById('sysmon_xml').click()">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <h4>Click to upload or drag &amp; drop</h4>
+                        <p>Sysmon-generated .xml event log file</p>
+                    </div>
+                    <input type="file" id="sysmon_xml" name="sysmon_xml" accept=".xml" required style="display:none" onchange="onXmlSelected(this)">
+                    <div class="file-selected" id="xmlSelected">
+                        <i class="fas fa-file-code"></i>
+                        <span id="xmlFileName"></span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Detection Rules <span style="color:var(--dim)">(Optional)</span></label>
+                    <input type="file" name="rules_file" id="rules_file" class="rules-input" accept=".yar,.yara,.yaml,.yml">
+                    <div class="form-hint"><i class="fas fa-info-circle" style="margin-right:3px;"></i>YARA (.yar/.yara) or YAML (.yaml/.yml). Leave blank to use built-in 56-rule detection set.</div>
+                </div>
+
+                <button type="submit" class="submit-btn">
+                    <i class="fas fa-rocket"></i> Run Offline Analysis
+                </button>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<script>
+function setMode(mode) {
+    if (mode !== 'offline') return;
+    const form = document.getElementById('offlineForm');
+    const btn  = document.getElementById('btn-offline');
+    form.classList.add('visible');
+    btn.style.background  = 'rgba(96,165,250,.15)';
+    btn.style.borderColor = 'rgba(96,165,250,.5)';
+    btn.style.color       = 'var(--blue)';
+    btn.innerHTML         = '<i class="fas fa-check"></i> Sysmon Log File Selected';
+    setTimeout(() => form.scrollIntoView({behavior:'smooth',block:'nearest'}), 50);
+}
+
+function onXmlSelected(input) {
+    if (!input.files || !input.files[0]) return;
+    const name = input.files[0].name;
+    document.getElementById('xmlFileName').textContent = name;
+    document.getElementById('xmlSelected').classList.add('visible');
+    const dz = document.getElementById('dropZone');
+    dz.style.borderColor = 'var(--green)';
+    dz.style.background  = 'rgba(52,211,153,.05)';
+    dz.querySelector('h4').textContent = 'File selected ✓';
+    dz.querySelector('p').textContent  = name;
+}
+
+const dz = document.getElementById('dropZone');
+if (dz) {
+    dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('dzactive'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('dzactive'));
+    dz.addEventListener('drop', e => {
+        e.preventDefault(); dz.classList.remove('dzactive');
+        if (e.dataTransfer.files.length) {
+            const inp  = document.getElementById('sysmon_xml');
+            const file = e.dataTransfer.files[0];
+            try {
+                // DataTransfer constructor available in Chrome 60+, Firefox 62+, Safari 14.1+
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                inp.files = dt.files;
+                onXmlSelected(inp);
+            } catch(ex) {
+                // Older browser fallback: show filename, user must confirm via file picker
+                const h4 = dz.querySelector('h4');
+                const p  = dz.querySelector('p');
+                if (h4) h4.textContent = file.name + ' — click Browse to confirm';
+                if (p)  p.textContent  = 'Drag-drop file assignment not supported in this browser';
+                dz.style.borderColor = 'var(--amber, #f59e0b)';
+            }
+            setMode('offline');
+        }
+    });
+}
+</script>
+</body>
+</html>

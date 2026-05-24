@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SentinelTrace — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--void:#060a10;--card:#0d1525;--border:rgba(255,255,255,.07);--text:#e8edf5;--muted:#6b7a94;--cyan:#00d4ff;--red:#ff4757;--mono:'Space Mono',monospace;--sans:'DM Sans',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--void);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+
+/* Animated grid background */
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.03) 1px,transparent 1px);background-size:40px 40px;animation:gridShift 20s linear infinite}
+@keyframes gridShift{to{background-position:40px 40px}}
+
+/* Glow blob */
+body::after{content:'';position:fixed;top:30%;left:50%;transform:translate(-50%,-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(0,212,255,.04) 0%,transparent 70%);pointer-events:none}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:44px 40px;width:100%;max-width:400px;position:relative;animation:fadeUp .5s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+/* Accent line at top */
+.card::before{content:'';position:absolute;top:0;left:20%;right:20%;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),transparent)}
+
+.logo{text-align:center;margin-bottom:36px}
+.logo h1{font-family:var(--mono);font-size:18px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--cyan)}
+.logo p{font-size:13px;color:var(--muted);margin-top:8px}
+
+.field{margin-bottom:18px}
+.field label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:7px}
+.field input{width:100%;background:rgba(0,0,0,.4);border:1px solid var(--border);color:var(--text);padding:11px 14px;border-radius:8px;font-size:14px;font-family:var(--sans);transition:border-color .2s,box-shadow .2s}
+.field input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,212,255,.08)}
+
+.submit-btn{width:100%;padding:12px;background:var(--cyan);color:#000;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:.8px;margin-top:8px;transition:opacity .15s,transform .1s;font-family:var(--sans)}
+.submit-btn:hover{opacity:.88}
+.submit-btn:active{transform:scale(.99)}
+
+.error{background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);color:#ff8090;padding:11px 14px;border-radius:8px;font-size:13px;margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.error::before{content:'⚠';flex-shrink:0}
+
+.hint{text-align:center;font-size:11px;color:var(--muted);margin-top:18px;font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <h1>⬡ SentinelTrace</h1>
+    <p>SOC Investigation Platform</p>
+  </div>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  {% with messages = get_flashed_messages() %}{% if messages %}{% for msg in messages %}<div class="error">{{ msg }}</div>{% endfor %}{% endif %}{% endwith %}
+  <form method="POST" action="/login">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ request.args.get('next','') }}">
+    <div class="field">
+      <label>Username</label>
+      <input type="text" name="username" autocomplete="username" autofocus required>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" name="password" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="submit-btn">Sign In →</button>
+  </form>
+  <div class="hint">Default: admin / SentinelTrace2026!</div>
+</div>
+</body>
+</html>

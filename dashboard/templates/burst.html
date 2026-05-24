@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SentinelTrace — Burst {{ burst.burst_id }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--void:#060a10;--card:#0d1525;--card2:#101929;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);--text:#e8edf5;--muted:#6b7a94;--dim:#3d4a5e;--cyan:#00d4ff;--red:#ff4757;--amber:#ffb800;--green:#00e676;--purple:#a855f7;--mono:'Space Mono',monospace;--sans:'DM Sans',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--void);color:var(--text);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.02) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+
+.topbar{background:rgba(6,10,16,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 28px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200}
+.brand{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--cyan);display:flex;align-items:center;gap:8px}
+.brand::before{content:'';width:7px;height:7px;background:var(--cyan);border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.back-link{color:var(--muted);text-decoration:none;font-size:12px;padding:6px 14px;border:1px solid var(--border);border-radius:8px;transition:all .15s}
+.back-link:hover{border-color:var(--border2);color:var(--text)}
+
+.page{max-width:1400px;margin:0 auto;padding:28px}
+.page-hdr{margin-bottom:24px;animation:fadeUp .4s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.page-hdr .eyebrow{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:6px}
+.page-hdr h1{font-size:22px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.page-hdr .sub{font-family:var(--mono);font-size:13px;color:var(--muted);margin-top:4px}
+
+.meta-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px;animation:fadeUp .4s .05s ease both}
+.meta-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden}
+.meta-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent,var(--cyan)),transparent);opacity:.5}
+.meta-card.c-red{--accent:var(--red)}
+.meta-card.c-amber{--accent:var(--amber)}
+.meta-card.c-green{--accent:var(--green)}
+.meta-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px}
+.meta-val{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--text);line-height:1.2}
+.meta-sub{font-size:11px;color:var(--muted);margin-top:5px}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase}
+.b-red{background:rgba(255,71,87,.15);color:var(--red);border:1px solid rgba(255,71,87,.25)}
+.b-amber{background:rgba(255,184,0,.12);color:var(--amber);border:1px solid rgba(255,184,0,.2)}
+.b-cyan{background:rgba(0,212,255,.1);color:#60d8ff;border:1px solid rgba(0,212,255,.15)}
+.b-green{background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.15)}
+.b-purple{background:rgba(168,85,247,.12);color:#c084fc;border:1px solid rgba(168,85,247,.2)}
+.b-gray{background:rgba(255,255,255,.05);color:var(--muted)}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;animation:fadeUp .4s .1s ease both}
+.card-hdr{padding:13px 16px;border-bottom:1px solid var(--border);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+.card-body{padding:16px}
+
+.ledger-item{display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:12px}
+.ledger-label{width:200px;flex-shrink:0;color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ledger-bar-wrap{flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.ledger-fill{height:100%;border-radius:3px}
+.ledger-val{font-family:var(--mono);font-size:11px;min-width:36px;text-align:right}
+
+.sub-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sub-cell{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:10px}
+.sub-label{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--dim);margin-bottom:5px}
+.sub-bar{background:rgba(255,255,255,.07);border-radius:2px;height:4px;overflow:hidden;margin-bottom:4px}
+.sub-fill{height:100%;border-radius:2px}
+.sub-val{font-family:var(--mono);font-size:12px;font-weight:700}
+
+.anomaly-box{background:rgba(255,184,0,.05);border:1px solid rgba(255,184,0,.18);border-radius:8px;padding:10px 12px;margin-top:12px}
+.anomaly-title{font-size:10px;color:var(--amber);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+
+.tree-node{padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:8px}
+.tree-node:last-child{border-bottom:none}
+.tree-arrow{color:var(--cyan);font-family:var(--mono);font-size:11px}
+
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table th{padding:10px 14px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--dim);border-bottom:1px solid var(--border);background:rgba(0,0,0,.2)}
+.data-table td{padding:9px 14px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--text)}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:rgba(255,255,255,.02)}
+.mono{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.cmd{font-family:var(--mono);font-size:10px;color:var(--muted);max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.btn{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;border:1px solid var(--border);background:transparent;color:var(--muted);text-decoration:none;display:inline-block;font-family:var(--sans)}
+.btn:hover{background:rgba(255,255,255,.06);color:var(--text)}
+.btn-primary{background:var(--cyan);color:#000;border-color:var(--cyan)}
+.btn-primary:hover{opacity:.85}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">⬡ SentinelTrace</div>
+  {# FIX: url_for('dashboard') requires run_id — use session fallback #}
+  <a href="{{ url_for('dashboard', run_id=session.get('analysis_run_id', 'current')) }}" class="back-link">← Back to Dashboard</a>
+</div>
+
+<div class="page">
+  <div class="page-hdr">
+    <div class="eyebrow">Burst Analysis</div>
+    <h1>
+      {{ burst.image | default('Unknown Process') }}
+      <span class="badge b-{% if (burst.risk_score | default(0)) >= 75 %}red{% elif (burst.risk_score | default(0)) >= 45 %}amber{% else %}cyan{% endif %}">
+        Risk {{ burst.risk_score | default(0) | round(1) }}/100
+      </span>
+      <span class="badge b-{% if (burst.risk_score | default(0)) >= 75 %}red{% elif (burst.risk_score | default(0)) >= 45 %}amber{% else %}cyan{% endif %}">
+        {{ burst.kill_chain_stage | default('Execution') }}
+      </span>
+      {% if burst.stage_hint %}
+      <span class="badge b-purple" style="margin-left:4px">Hint: {{ burst.stage_hint }}</span>
+      {% endif %}
+    </h1>
+    <div class="sub">
+      ID: {{ burst.burst_id | default('N/A') }}
+      &nbsp;·&nbsp; {{ burst.event_count | default(0) }} events
+      &nbsp;·&nbsp; {{ burst.start_time | default('—') }} → {{ burst.end_time | default('—') }}
+    </div>
+  </div>
+
+  {# Meta strip #}
+  <div class="meta-strip">
+    <div class="meta-card {% if (burst.risk_score | default(0)) >= 75 %}c-red{% elif (burst.risk_score | default(0)) >= 45 %}c-amber{% else %}{% endif %}">
+      <div class="meta-label">Risk Score</div>
+      <div class="meta-val" style="color:{% if (burst.risk_score | default(0)) >= 75 %}var(--red){% elif (burst.risk_score | default(0)) >= 45 %}var(--amber){% else %}var(--cyan){% endif %}">
+        {{ burst.risk_score | default(0) | round(1) }}<span style="font-size:14px;color:var(--muted)">/{{ burst.stage_cap | default(100) }}</span>
+      </div>
+      <div class="meta-sub">Stage cap: {{ burst.stage_cap | default(100) }}</div>
+    </div>
+    <div class="meta-card">
+      <div class="meta-label">Event Window</div>
+      <div class="meta-val" style="font-size:14px">{{ burst.event_count | default(0) }}</div>
+      <div class="meta-sub">{{ ((burst.start_time | string)[:10]) if burst.start_time else '—' }}</div>
+    </div>
+    <div class="meta-card">
+      <div class="meta-label">Classification</div>
+      <span class="badge b-{% if (burst.risk_score | default(0)) >= 75 %}red{% elif (burst.risk_score | default(0)) >= 45 %}amber{% else %}gray{% endif %}">
+        {% if (burst.risk_score | default(0)) >= 75 %}Confirmed Attack{% elif (burst.risk_score | default(0)) >= 45 %}Attack Candidate{% else %}Background{% endif %}
+      </span>
+      {% if burst.has_correlation %}<div style="margin-top:6px"><span class="badge b-purple">Multi-stage Campaign</span></div>{% endif %}
+    </div>
+    <div class="meta-card">
+      <div class="meta-label">Process Chain</div>
+      <div style="font-family:var(--mono);font-size:11px;margin-top:4px">
+        {% if process_summary and process_summary.parents %}
+          {% for p in process_summary.parents[:2] %}
+            <div style="color:var(--muted)">{{ p }}</div>
+          {% endfor %}
+        {% endif %}
+        <div style="color:var(--cyan);margin-top:2px">→ {{ burst.image | default('unknown') }}</div>
+      </div>
+    </div>
+  </div>
+
+  {# Attack Storyline #}
+  {% if burst.attack_story and burst.attack_story.steps %}
+  <div class="card" style="margin-bottom:14px; background:rgba(0,212,255,0.03); border-color:rgba(0,212,255,0.2); animation:fadeUp .4s .08s ease both">
+    <div class="card-hdr" style="color:var(--cyan)">⚡ Attack Storyline</div>
+    <div class="card-body" style="padding:20px">
+      <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center">
+        {% for step in burst.attack_story.steps %}
+          <div style="padding:8px 14px; background:rgba(0,212,255,0.08); border:1px solid rgba(0,212,255,0.15); border-radius:8px; font-size:12.5px; font-family:var(--mono); color:var(--text)">
+            <span style="color:var(--cyan); font-weight:700; margin-right:6px">{{ loop.index }}.</span> {{ step | default('unknown step') }}
+          </div>
+          {% if not loop.last %}
+            <div style="color:var(--dim); font-size:18px">→</div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# Detection Explainability #}
+  {% if burst.top_detection_reasons %}
+  <div class="card" style="margin-bottom:14px; background:rgba(255,184,0,0.03); border-color:rgba(255,184,0,0.2); animation:fadeUp .4s .09s ease both">
+    <div class="card-hdr" style="color:var(--amber)">🔍 Detection Explainability</div>
+    <div class="card-body" style="padding:20px">
+      {% for reason in burst.top_detection_reasons %}
+        <div style="font-size:13px; color:var(--text); margin-bottom:8px; padding-left:14px; border-left:3px solid var(--amber); line-height:1.4">
+          <span style="color:var(--amber); font-weight:800; font-size:10px; text-transform:uppercase; margin-right:10px; letter-spacing:0.5px">Insight</span> {{ reason | default('Data point unavailable') }}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="grid-2">
+    {# Score Ledger #}
+    <div class="card">
+      <div class="card-hdr">Score ledger</div>
+      <div class="card-body">
+        {% if burst.score_ledger %}
+          {% for entry in burst.score_ledger %}
+          {% if entry.delta and entry.delta != 0 %}
+          <div class="ledger-item">
+            <div class="ledger-label" title="{{ entry.reason | default('') }}">{{ entry.label | default('Adjustment') }}</div>
+            <div class="ledger-bar-wrap">
+              <div class="ledger-fill" style="width:{{ [([ (entry.delta | default(0) | abs), 40]|min) * 2, 3]|max }}%;background:{% if (entry.delta | default(0)) >= 20 %}var(--red){% elif (entry.delta | default(0)) >= 10 %}var(--amber){% elif (entry.delta | default(0)) > 0 %}var(--cyan){% else %}var(--dim){% endif %}"></div>
+            </div>
+            <div class="ledger-val" style="color:{% if (entry.delta | default(0)) >= 20 %}var(--red){% elif (entry.delta | default(0)) >= 10 %}var(--amber){% elif (entry.delta | default(0)) > 0 %}var(--cyan){% else %}var(--dim){% endif %}">{{ entry.delta | default(0) | round(1) }}</div>
+          </div>
+          {% endif %}
+          {% endfor %}
+        {% else %}
+          {% for r in (burst.confidence_reasons or []) %}
+          <div style="font-size:12px;color:var(--muted);margin-bottom:5px;padding-left:8px;border-left:2px solid var(--border)">{{ r | default('Confidence factor applied') }}</div>
+          {% endfor %}
+          {% if not burst.score_ledger and not burst.confidence_reasons %}
+          <div style="color:var(--dim);font-size:12px;font-style:italic">No score ledger available.</div>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+
+    {# Baseline sub-scores #}
+    <div class="card">
+      <div class="card-hdr">Baseline deviation factors</div>
+      <div class="card-body">
+        {% if burst.baseline_sub_scores %}
+        <div class="sub-grid">
+          {% for factor, val in burst.baseline_sub_scores.items() %}
+          {% set pct = ((val | default(0)) * 100)|int %}
+          {% set col = 'var(--red)' if pct >= 75 else 'var(--amber)' if pct >= 45 else 'var(--cyan)' %}
+          <div class="sub-cell">
+            <div class="sub-label">{{ factor }}</div>
+            <div class="sub-bar"><div class="sub-fill" style="width:{{ pct }}%;background:{{ col }}"></div></div>
+            <div class="sub-val" style="color:{{ col }}">{{ pct }}%</div>
+          </div>
+          {% endfor %}
+        </div>
+        {% elif (burst.baseline_count | default(0)) > 0 %}
+        <div style="color:var(--cyan);font-size:12px;padding:10px;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.1);border-radius:8px">
+            <strong>Baseline observed:</strong> {{ burst.baseline_count }} historical events matching this entity.
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">Anomaly depth is being calculated based on these {{ burst.baseline_count }} samples.</div>
+        </div>
+        {% else %}
+        <div style="color:var(--dim);font-size:12px;font-style:italic">No baseline data for this burst.</div>
+        {% endif %}
+
+        {% if burst.baseline_anomalies and burst.baseline_anomalies|length > 0 %}
+        <div class="anomaly-box">
+          <div class="anomaly-title">⚠ Behavioral Anomalies</div>
+          {% for a in burst.baseline_anomalies %}
+          <div style="font-size:11px;color:var(--amber);margin-bottom:2px;opacity:.85">• {{ a | default('Unspecified behavioral shift') }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Process summary #}
+  <div class="grid-2" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-hdr">Parent processes</div>
+      <div class="card-body">
+        {% if process_summary.parents %}
+          {% for p in process_summary.parents %}
+          <div class="tree-node"><span class="tree-arrow">⊢</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">{{ p }}</span></div>
+          {% endfor %}
+        {% else %}
+          <div style="color:var(--dim);font-size:12px;font-style:italic">No parent data.</div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hdr">Child processes spawned</div>
+      <div class="card-body">
+        {% if process_summary.children %}
+          {% for c in process_summary.children %}
+          <div class="tree-node"><span class="tree-arrow">↳</span><span style="font-family:var(--mono);font-size:12px;color:var(--amber)">{{ c }}</span></div>
+          {% endfor %}
+        {% else %}
+          <div style="color:var(--dim);font-size:12px;font-style:italic">No child processes spawned.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# IOC Summary (NEW) #}
+  {% if burst.iocs %}
+  <div class="card" style="margin-bottom:14px; animation:fadeUp .4s .12s ease both">
+    <div class="card-hdr">Indicators of Compromise (IOCs)</div>
+    <div class="card-body" style="padding:0">
+      <table class="data-table">
+        <thead><tr><th>Type</th><th>Value</th><th>Context</th></tr></thead>
+        <tbody>
+          {% for ioc in burst.iocs %}
+          <tr>
+            <td class="mono" style="color:var(--cyan)">{{ ioc.type }}</td>
+            <td class="mono" style="word-break:break-all">{{ ioc.value }}</td>
+            <td style="color:var(--muted)">{{ ioc.context | default('—') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {# Event timeline #}
+  <div class="card" style="animation-delay:.15s">
+    <div class="card-hdr">Event timeline ({{ events|length }} events)</div>
+    {% if events %}
+    <table class="data-table">
+      <thead>
+        <tr><th>Time</th><th>EID</th><th>Parent</th><th>Command / Target</th><th>Network</th></tr>
+      </thead>
+      <tbody>
+        {% for e in events %}
+        <tr>
+          <td class="mono">{{ (e.event_time or '')[:19] }}</td>
+          <td>
+            <span class="badge b-{% if e.event_id|string in ['1','8','9','12','13','14','19','25'] %}red{% elif e.event_id|string in ['3','11','22'] %}amber{% else %}gray{% endif %}">{{ e.event_id }}</span>
+          </td>
+          <td class="mono">{{ (e.parent_image or '—')[:30] }}</td>
+          <td>
+            {% if e.command_line %}
+            <div class="cmd" title="{{ e.command_line }}">{{ e.command_line }}</div>
+            {% elif e.file_path %}
+            <div class="cmd" title="{{ e.file_path }}" style="color:var(--cyan)">{{ e.file_path }}</div>
+            {% elif e.target_filename %}
+            <div class="cmd" title="{{ e.target_filename }}" style="color:var(--cyan)">{{ e.target_filename }}</div>
+            {% else %}<span style="color:var(--dim)">—</span>{% endif %}
+          </td>
+          <td class="mono" style="color:{% if e.dst_ip or e.destination_ip %}var(--amber){% else %}var(--dim){% endif %}">
+            {% set ip = e.dst_ip or e.destination_ip %}
+            {% if ip %}{{ ip }}{% if e.dst_port or e.destination_port %}:{{ e.dst_port or e.destination_port }}{% endif %}{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="padding:32px;text-align:center;color:var(--dim);font-style:italic">
+      No events found for this burst window.
+      <div style="font-size:11px;margin-top:6px">Image: {{ burst.image }} · Window: {{ burst.start_time }} → {{ burst.end_time }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div style="margin-top:16px;display:flex;gap:10px">
+    <a href="{{ url_for('dashboard', run_id=session.get('analysis_run_id', 'current')) }}" class="btn btn-primary">← Back to Dashboard</a>
+    <a href="{{ url_for('details') }}" class="btn">Investigation View</a>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SentinelTrace — Raw Events</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--void:#060a10;--card:#0d1525;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);--text:#e8edf5;--muted:#6b7a94;--dim:#3d4a5e;--cyan:#00d4ff;--red:#ff4757;--amber:#ffb800;--green:#00e676;--mono:'Space Mono',monospace;--sans:'DM Sans',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--void);color:var(--text);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.02) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+.topbar{background:rgba(6,10,16,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 28px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200}
+.brand{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--cyan)}
+.nav{display:flex;gap:2px}
+.nav a{color:var(--muted);text-decoration:none;font-size:12px;padding:6px 14px;border-radius:8px;transition:all .15s}
+.nav a:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.page{max-width:1500px;margin:0 auto;padding:28px}
+.page-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.page-hdr h1{font-size:18px;font-weight:600}
+.btn{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;border:1px solid var(--border);background:transparent;color:var(--muted);text-decoration:none;display:inline-block}
+.btn:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.btn-primary{background:var(--cyan);color:#000;border-color:var(--cyan)}
+.btn-primary:hover{opacity:.85}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;animation:fadeUp .4s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:10px 14px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--dim);border-bottom:1px solid var(--border);background:rgba(0,0,0,.2)}
+td{padding:9px 14px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.mono{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.pager{display:flex;align-items:center;gap:10px;padding:14px 18px;border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">⬡ SentinelTrace</div>
+  <nav class="nav">
+    <a href="{{ url_for('dashboard', run_id=analysis_run_id) if analysis_run_id else url_for('welcome_page') }}">← Dashboard</a>
+  </nav>
+</div>
+<div class="page">
+  <div class="page-hdr">
+    <div>
+      <h1>Raw Events</h1>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px">Paginated Sysmon events — no scoring applied</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <a href="{{ url_for('export_events_csv') }}" class="btn">Export CSV</a>
+      <a href="{{ url_for('dashboard', run_id=analysis_run_id) if analysis_run_id else url_for('welcome_page') }}" class="btn btn-primary">← Back to Dashboard</a>
+    </div>
+  </div>
+  <div class="card">
+    {% if events %}
+    <table>
+      <thead><tr><th>Time</th><th>EID</th><th>Image</th><th>User</th><th>Src IP</th><th>Dst IP</th><th>Command Line</th></tr></thead>
+      <tbody>
+      {% for e in events %}
+      <tr>
+        <td class="mono">{{ (e.event_time or '')[:19] }}</td>
+        <td class="mono" style="color:var(--cyan)">{{ e.event_id }}</td>
+        <td style="font-weight:500;font-size:12px">{{ e.image }}</td>
+        <td class="mono">{{ e.user or '—' }}</td>
+        <td class="mono">{{ e.src_ip or '—' }}</td>
+        <td class="mono" style="color:{% if e.dst_ip %}var(--amber){% else %}var(--dim){% endif %}">{{ e.dst_ip or '—' }}</td>
+        <td style="font-family:var(--mono);font-size:10px;color:var(--muted);max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.command_line or '—' }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <div class="pager">
+      {% if last_id > 0 %}<a href="{{ url_for('raw_events', last_id=0) }}" class="btn">Jump to Top</a>{% endif %}
+      {% if next_cursor %}
+      <a href="{{ url_for('raw_events', last_id=next_cursor) }}" class="btn btn-primary">Next Batch →</a>
+      {% else %}
+      <span style="font-size:12px;color:var(--dim)">End of Event Stream</span>
+      {% endif %}
+    </div>
+    {% else %}
+    <div style="padding:40px;text-align:center;color:var(--dim)">No events available.</div>
+    {% endif %}
+  </div>
+</div>
+</body>
+</html>

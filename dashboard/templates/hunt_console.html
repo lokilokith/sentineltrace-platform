@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SentinelTrace | Threat Hunt Console</title>
+<style>
+:root{
+  --bg:#0f172a;--card:rgba(30,41,59,.85);--border:rgba(148,163,184,.15);
+  --text:#f1f5f9;--muted:#94a3b8;--dim:#64748b;
+  --blue:#60a5fa;--cyan:#22d3ee;--red:#f87171;--orange:#fbbf24;--green:#34d399;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.topbar{background:rgba(15,23,42,.9);border-bottom:1px solid var(--border);padding:14px 28px;
+  display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:50}
+.topbar h1{font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--blue)}
+.nav-link{color:var(--muted);text-decoration:none;font-size:13px;padding:6px 12px;border-radius:6px;transition:all .15s}
+.nav-link:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.nav-link.active{color:var(--blue)}
+.container{max-width:1500px;margin:0 auto;padding:28px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:20px}
+
+/* Query bar */
+.query-bar{display:flex;gap:10px;align-items:stretch}
+.query-input{flex:1;background:rgba(15,23,42,.8);border:1px solid var(--border);color:var(--text);
+  padding:12px 16px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:14px;
+  transition:border-color .2s}
+.query-input:focus{outline:none;border-color:var(--blue)}
+.run-btn{padding:12px 24px;background:var(--blue);color:#000;border:none;border-radius:8px;
+  font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:.5px;
+  transition:opacity .15s}
+.run-btn:hover{opacity:.85}
+.run-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* Quick filters */
+.quick-filters{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.qf-btn{padding:5px 12px;background:rgba(255,255,255,.05);border:1px solid var(--border);
+  color:var(--muted);border-radius:4px;cursor:pointer;font-size:11px;font-family:monospace;
+  transition:all .15s}
+.qf-btn:hover{border-color:var(--blue);color:var(--blue);background:rgba(96,165,250,.08)}
+
+/* Syntax help */
+.syntax-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:16px}
+.syntax-item{background:rgba(15,23,42,.5);border:1px solid var(--border);border-radius:6px;padding:10px 12px}
+.syntax-item .ex{font-family:monospace;font-size:11px;color:var(--cyan);margin-bottom:3px}
+.syntax-item .desc{font-size:11px;color:var(--dim)}
+
+/* Results */
+.results-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.results-count{font-size:13px;color:var(--muted)}
+.results-count span{color:var(--text);font-weight:700}
+.export-btn{padding:6px 14px;border:1px solid var(--border);color:var(--muted);background:transparent;
+  border-radius:6px;font-size:11px;cursor:pointer;transition:all .15s}
+.export-btn:hover{border-color:var(--green);color:var(--green)}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:11px 14px;text-align:left;color:var(--dim);text-transform:uppercase;font-size:10px;
+   border-bottom:1px solid var(--border);letter-spacing:.5px}
+td{padding:10px 14px;border-bottom:1px solid var(--border);font-family:monospace;vertical-align:top}
+tr:hover td{background:rgba(255,255,255,.02)}
+.results-viewport{position:relative;max-height:600px;overflow-y:auto;overflow-x:auto;border:1px solid var(--border);border-radius:8px;background:rgba(15,23,42,.35);scrollbar-gutter:stable;overscroll-behavior:contain}
+.results-spacer{width:100%}
+.results-table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
+.results-table tbody tr{height:64px}
+.results-table tbody tr[data-selected="true"] td{background:rgba(34,211,238,.08)}
+.results-table tbody tr:focus-within td{background:rgba(96,165,250,.08)}
+.results-table td,.results-table th{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.results-table td:nth-child(4){white-space:normal;word-break:break-word}
+.badge{display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:700}
+.sev-high  {background:rgba(248,113,113,.15);color:var(--red)}
+.sev-medium{background:rgba(251,191,36,.15);color:var(--orange)}
+.sev-low   {background:rgba(52,211,153,.15);color:var(--green)}
+.sev-critical{background:rgba(248,113,113,.25);color:#ff4444}
+.hl{color:var(--cyan)}  /* highlighted field match */
+.lolbin-flag{display:inline-block;width:6px;height:6px;background:var(--orange);
+  border-radius:50%;margin-right:4px;vertical-align:middle}
+
+.loading{text-align:center;padding:40px;color:var(--muted);display:none}
+.empty-state{text-align:center;padding:50px;color:var(--dim)}
+.error-msg{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);
+  color:var(--red);padding:12px 16px;border-radius:6px;font-size:13px;display:none}
+
+/* Process tree panel */
+.tree-panel{display:none;font-family:monospace;font-size:12px;line-height:1.8}
+.tree-node{padding:2px 0}
+.tree-node .img{color:var(--blue);font-weight:600}
+.tree-node .img.lolbin{color:var(--orange)}
+.tree-node .ts{color:var(--dim);font-size:10px}
+.tree-node .entropy{color:var(--red);font-size:10px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex;gap:24px;align-items:center">
+    <h1>⚡ SentinelTrace</h1>
+    <nav style="display:flex;gap:4px">
+      <a href="/dashboard/current" class="nav-link">Dashboard</a>
+      <a href="/triage" class="nav-link">Triage</a>
+      <a href="/hunt" class="nav-link active">Hunt</a>
+      <a href="/live" class="nav-link">Live</a>
+    </nav>
+  </div>
+  <div style="display:flex;gap:16px;align-items:center">
+    <span style="font-size:11px;color:var(--dim)">
+      Run: <span style="color:var(--muted);font-family:monospace">{{ run_id[:16] if run_id else 'None' }}</span>
+    </span>
+    {% if current_user %}
+    <span style="font-size:11px;color:var(--muted)">{{ current_user.username }} <span style="color:var(--dim)">({{ current_user.role }})</span></span>
+    <a href="/logout" style="padding:6px 12px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:var(--red);border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;">Logout</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Query Console -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h2 style="font-size:13px;text-transform:uppercase;color:var(--muted);letter-spacing:1px">Hunt Query</h2>
+      <div style="display:flex;gap:8px">
+        <button onclick="showTree()" style="padding:6px 12px;border:1px solid var(--border);color:var(--muted);background:transparent;border-radius:6px;font-size:11px;cursor:pointer">Process Tree</button>
+        <button onclick="showBeaconing()" style="padding:6px 12px;border:1px solid var(--border);color:var(--muted);background:transparent;border-radius:6px;font-size:11px;cursor:pointer">Beaconing</button>
+        <button onclick="showIOCs()" style="padding:6px 12px;border:1px solid var(--border);color:var(--muted);background:transparent;border-radius:6px;font-size:11px;cursor:pointer">IOCs</button>
+      </div>
+    </div>
+    <div class="query-bar">
+      <input type="text" id="queryInput" class="query-input"
+             placeholder="e.g.  image:powershell AND NOT computer:DC01   |   sev:high event_id:3   |   cmd:'-enc '"
+             value="{{ query }}"
+             onkeydown="if(event.key==='Enter') runQuery()">
+      <button class="run-btn" id="runBtn" onclick="runQuery()">▶ Run</button>
+    </div>
+
+    <div class="quick-filters">
+      <span style="font-size:11px;color:var(--dim);align-self:center">Quick:</span>
+      <button class="qf-btn" onclick="setQ('image:powershell AND sev:high')">PowerShell High</button>
+      <button class="qf-btn" onclick="setQ('image:powershell AND cmd:-enc')">Encoded PS</button>
+      <button class="qf-btn" onclick="setQ('image:cmd AND NOT parent:explorer')">Suspicious CMD</button>
+      <button class="qf-btn" onclick="setQ('image:schtasks')">Persistence</button>
+      <button class="qf-btn" onclick="setQ('image:reg.exe')">Registry</button>
+      <button class="qf-btn" onclick="setQ('image:wmic')">Remote Exec</button>
+      <button class="qf-btn" onclick="setQ('event_id:10 image:lsass.exe')">Cred Access</button>
+      <button class="qf-btn" onclick="setQ('event_id:3 image:certutil')">Certutil C2</button>
+      <button class="qf-btn" onclick="setQ('image:mshta')">MSHTA</button>
+      <button class="qf-btn" onclick="setQ('event_id:8')">CreateRemoteThread</button>
+      <button class="qf-btn" onclick="setQ('event_id:10')">LSASS Access</button>
+      <button class="qf-btn" onclick="setQ('image:schtasks AND cmd:create')">Sched Task</button>
+      <button class="qf-btn" onclick="setQ('event_id:25')">Process Tamper</button>
+      <button class="qf-btn" onclick="setQ('sev:critical')">All Critical</button>
+    </div>
+
+    <div class="syntax-row">
+      <div class="syntax-item"><div class="ex">image:powershell.exe</div><div class="desc">Exact process name</div></div>
+      <div class="syntax-item"><div class="ex">cmd:"-enc "</div><div class="desc">CommandLine contains</div></div>
+      <div class="syntax-item"><div class="ex">sev:high event_id:3</div><div class="desc">AND (implicit)</div></div>
+      <div class="syntax-item"><div class="ex">NOT computer:DC01</div><div class="desc">Exclusion</div></div>
+      <div class="syntax-item"><div class="ex">parent:winword.exe</div><div class="desc">Parent image</div></div>
+      <div class="syntax-item"><div class="ex">mitre:T1059</div><div class="desc">MITRE technique</div></div>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-msg" id="errorMsg"></div>
+
+  <!-- Loading -->
+  <div class="loading" id="loadingDiv">
+    <div style="font-size:28px;margin-bottom:10px">⟳</div>
+    Hunting…
+  </div>
+
+  <!-- Results -->
+  <div class="card" id="resultsCard" style="display:none">
+    <div class="results-header">
+      <div class="results-count">Showing <span id="resultsCount">0</span> of <span id="totalCount">0</span> events</div>
+      <div style="display:flex;gap:8px">
+        <button id="loadMoreBtn" class="export-btn" style="display:none; border-color:var(--cyan); color:var(--cyan)" onclick="loadMore()">Load More</button>
+        <button class="export-btn" onclick="exportCSV()">Export CSV</button>
+      </div>
+    </div>
+    <div class="results-viewport" id="resultsViewport" tabindex="0" aria-label="Hunt results">
+      <div class="results-spacer" id="resultsSpacerTop"></div>
+      <table id="resultsTable" class="results-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Image</th>
+            <th>Parent</th>
+            <th>Command Line</th>
+            <th>Computer</th>
+            <th>EID</th>
+            <th>Severity</th>
+            <th>Dst IP</th>
+          </tr>
+        </thead>
+        <tbody id="resultsTbody"></tbody>
+      </table>
+      <div class="results-spacer" id="resultsSpacerBottom"></div>
+    </div>
+  </div>
+
+  <!-- Process Tree Panel -->
+  <div class="card" id="treeCard" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h2 style="font-size:13px;text-transform:uppercase;color:var(--muted);letter-spacing:1px">Process Tree</h2>
+      <button onclick="document.getElementById('treeCard').style.display='none'" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:16px">✕</button>
+    </div>
+    <div class="tree-panel" id="treePanel"></div>
+  </div>
+
+  <!-- Beaconing Panel -->
+  <div class="card" id="beaconCard" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h2 style="font-size:13px;text-transform:uppercase;color:var(--muted);letter-spacing:1px">Beaconing Signals</h2>
+      <button onclick="document.getElementById('beaconCard').style.display='none'" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:16px">✕</button>
+    </div>
+    <div id="beaconPanel"></div>
+  </div>
+
+  <!-- IOC Panel -->
+  <div class="card" id="iocCard" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h2 style="font-size:13px;text-transform:uppercase;color:var(--muted);letter-spacing:1px">Extracted IOCs</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <a id="iocCsvLink" href="#" style="font-size:11px;color:var(--green);text-decoration:none">Export CSV</a>
+        <button onclick="document.getElementById('iocCard').style.display='none'" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:16px">✕</button>
+      </div>
+    </div>
+    <div id="iocPanel"></div>
+  </div>
+
+</div>
+
+<div id="config-params" data-run-id="{{ run_id or 'live' }}" style="display:none"></div>
+
+  <style>
+    /* Toast System (10/10 SOC) */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .toast {
+      background: rgba(13, 21, 37, 0.95);
+      border: 1px solid var(--border2);
+      border-left: 4px solid var(--red);
+      color: var(--text);
+      padding: 14px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      backdrop-filter: blur(10px);
+      min-width: 300px;
+      animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(30px) scale(0.9); }
+      to { opacity: 1; transform: translateX(0) scale(1); }
+    }
+    .toast.fade-out {
+      animation: toastOut 0.3s ease forwards;
+    }
+    @keyframes toastOut {
+      to { opacity: 0; transform: translateY(20px); }
+    }
+  </style>
+
+  <div id="toast-container"></div>
+
+  <script>
+    const RUN_ID = document.getElementById('config-params').dataset.runId;
+    const RESULT_ROW_HEIGHT = 64;
+    const RESULT_OVERSCAN = 8;
+    let lastResults = [];
+    let resultsViewportBound = false;
+    let resultsRenderQueued = false;
+    let resultsVisibleStart = 0;
+    let resultsVisibleEnd = 0;
+    let selectedResultUid = null;
+
+    function escHtml(str) {
+      if (str == null) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function showToast(message, type = 'error') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      if (type === 'success') toast.style.borderLeftColor = 'var(--green)';
+      toast.innerHTML = `
+        <div style="font-weight:700; font-size:11px; text-transform:uppercase; margin-bottom:4px; color:${type === 'success' ? 'var(--green)' : 'var(--red)'}">
+          ${type.toUpperCase()}
+        </div>
+        <div>${message}</div>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 300);
+      }, 5000);
+    }
+
+    async function safeFetch(url, options = {}) {
+      try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        options.headers = Object.assign({ 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' }, options.headers || {});
+        const resp = await fetch(url, options);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+        return data;
+      } catch (e) {
+        console.error(`[Fetch Error] ${url}:`, e);
+        showToast(e.message, 'error');
+        throw e;
+      }
+    }
+
+function validateEvents(events) {
+  if (!Array.isArray(events)) return [];
+  // Basic schema validation: ensure mandatory fields exist/are strings
+  return events.map(ev => ({
+    event_uid: String(ev.event_uid || ev.eventUid || ev.uid || ''),
+    event_time: String(ev.event_time || ev.utc_time || ''),
+    image: String(ev.image || '—'),
+    parent_image: String(ev.parent_image || '—'),
+    command_line: String(ev.command_line || '—'),
+    computer: String(ev.computer || '—'),
+    event_id: String(ev.event_id || '—'),
+    severity: String(ev.severity || 'low').toLowerCase(),
+    destination_ip: String(ev.destination_ip || ''),
+    is_lolbin: !!ev.is_lolbin,
+    cmd_high_entropy: !!ev.cmd_high_entropy
+  }));
+}
+
+let currentPage = 1;
+let lastHasNext = false;
+
+async function runQuery(append = false) {
+  if (!RUN_ID) { showError('No active run — upload a Sysmon XML first.'); return; }
+  const q = document.getElementById('queryInput').value.trim();
+  
+  if (!append) {
+    currentPage = 1;
+    setLoading(true);
+    hideError();
+    document.getElementById('resultsTbody').innerHTML = ''; 
+  }
+
+  try {
+    const url = `/api/hunt?run_id=${encodeURIComponent(RUN_ID)}&q=${encodeURIComponent(q)}&page=${currentPage}&limit=100`;
+    const data = await safeFetch(url);
+    const validated = validateEvents(data.results || []);
+    
+    if (append) {
+      lastResults = lastResults.concat(validated);
+    } else {
+      lastResults = validated;
+      selectedResultUid = lastResults[0]?.event_uid || null;
+    }
+
+    bindResultsViewport();
+    queueResultsRender(true);
+    
+    // Update Load More visibility
+    lastHasNext = data.has_next;
+    document.getElementById('loadMoreBtn').style.display = lastHasNext ? 'inline-block' : 'none';
+    document.getElementById('resultsCount').textContent = lastResults.length;
+    document.getElementById('totalCount').textContent = data.total || lastResults.length;
+
+  } catch(e) {
+    // Errors handled by safeFetch
+  } finally {
+    if (!append) setLoading(false);
+  }
+}
+
+function loadMore() {
+  currentPage++;
+  runQuery(true);
+}
+
+function getResultsViewport() {
+  return document.getElementById('resultsViewport');
+}
+
+function getResultsTbody() {
+  return document.getElementById('resultsTbody');
+}
+
+function getResultsSpacerTop() {
+  return document.getElementById('resultsSpacerTop');
+}
+
+function getResultsSpacerBottom() {
+  return document.getElementById('resultsSpacerBottom');
+}
+
+function queueResultsRender(force = false) {
+  if (resultsRenderQueued && !force) return;
+  resultsRenderQueued = true;
+  requestAnimationFrame(() => {
+    resultsRenderQueued = false;
+    renderResultsWindow();
+  });
+}
+
+function bindResultsViewport() {
+  if (resultsViewportBound) return;
+  const viewport = getResultsViewport();
+  if (!viewport) return;
+  resultsViewportBound = true;
+  viewport.addEventListener('scroll', () => queueResultsRender(), {passive: true});
+  window.addEventListener('resize', () => queueResultsRender(true), {passive: true});
+}
+
+function renderResultsWindow() {
+  const viewport = getResultsViewport();
+  const tbody = getResultsTbody();
+  const spacerTop = getResultsSpacerTop();
+  const spacerBottom = getResultsSpacerBottom();
+  if (!viewport || !tbody || !spacerTop || !spacerBottom) return;
+
+  const total = lastResults.length;
+  if (!total) {
+    tbody.innerHTML = '';
+    spacerTop.style.height = '0px';
+    spacerBottom.style.height = '0px';
+    return;
+  }
+
+  const visibleCount = Math.ceil(viewport.clientHeight / RESULT_ROW_HEIGHT) + (RESULT_OVERSCAN * 2);
+  const start = Math.max(Math.floor(viewport.scrollTop / RESULT_ROW_HEIGHT) - RESULT_OVERSCAN, 0);
+  const end = Math.min(start + visibleCount, total);
+  resultsVisibleStart = start;
+  resultsVisibleEnd = end;
+
+  spacerTop.style.height = `${start * RESULT_ROW_HEIGHT}px`;
+  spacerBottom.style.height = `${Math.max(total - end, 0) * RESULT_ROW_HEIGHT}px`;
+
+  const fragment = document.createDocumentFragment();
+  for (let i = start; i < end; i += 1) {
+    fragment.appendChild(buildResultRow(lastResults[i]));
+  }
+
+  tbody.innerHTML = '';
+  tbody.appendChild(fragment);
+  updateResultSelection();
+}
+
+function updateResultSelection() {
+  const tbody = getResultsTbody();
+  if (!tbody) return;
+  tbody.querySelectorAll('tr').forEach(row => {
+    row.dataset.selected = String(row.dataset.uid === selectedResultUid);
+  });
+}
+
+function focusResult(eventUid) {
+  selectedResultUid = String(eventUid || '');
+  queueResultsRender(true);
+}
+
+function buildResultRow(ev) {
+  const row = document.createElement('tr');
+  row.dataset.uid = ev.event_uid || '';
+  row.tabIndex = 0;
+  row.setAttribute('role', 'row');
+  row.innerHTML = `
+      <td style="color:var(--dim);white-space:nowrap">${escHtml((ev.event_time||ev.utc_time||'').slice(11,19))}</td>
+      <td><span class="${ev.is_lolbin?'lolbin-flag':''}">${ev.is_lolbin?'<span class="lolbin-flag" title="LOLBin"></span>':''}</span>
+          <span style="color:var(--blue);font-weight:600">${escHtml(ev.image||'—')}</span></td>
+      <td style="color:var(--muted)">${escHtml(ev.parent_image||'—')}</td>
+      <td style="max-width:350px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${ev.cmd_high_entropy?'var(--orange)':'var(--muted)'}" title="${escHtml(ev.command_line||'')}">
+        ${ev.cmd_high_entropy?'🔒 ':''}${escHtml((ev.command_line||'—').slice(0,120))}</td>
+      <td style="color:var(--dim)">${escHtml(ev.computer||'—')}</td>
+      <td style="color:var(--cyan)">${escHtml(ev.event_id||'—')}</td>
+      <td><span class="badge sev-${(ev.severity || 'low').toLowerCase()}">${escHtml((ev.severity || 'low').toLowerCase())}</span></td>
+      <td style="color:${ev.destination_ip?'var(--red)':'var(--dim)'}">${escHtml(ev.destination_ip||'—')}</td>
+    `;
+  row.addEventListener('click', () => focusResult(ev.event_uid));
+  row.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      focusResult(ev.event_uid);
+    }
+  });
+  return row;
+}
+
+function renderResults() {
+  document.getElementById('resultsCard').style.display = 'block';
+  const viewport = getResultsViewport();
+  if (viewport && !viewport.dataset.bound) {
+    viewport.dataset.bound = '1';
+    viewport.addEventListener('scroll', () => queueResultsRender(), {passive: true});
+  }
+  queueResultsRender(true);
+}
+
+async function showTree() {
+  if (!RUN_ID) return;
+  try {
+    const resp = await fetch(`/api/process-tree/${RUN_ID}`);
+    const data = await resp.json();
+    const flat = data.flat || [];
+    const panel = document.getElementById('treePanel');
+    if (!flat.length) { panel.innerHTML = '<div style="color:var(--dim)">No process tree data available.</div>'; }
+    else {
+      panel.innerHTML = flat.map(n => {
+        const indent = '  '.repeat(n.depth || 0);
+        const prefix = n.depth > 0 ? '└─ ' : '';
+        const isLolbin = n.is_lolbin;
+        const hasEntropy = n.cmd_high_entropy;
+        const isHighRisk = n.risk_level === 'high';
+        return `<div class="tree-node" style="margin-left:${(n.depth||0)*20}px; ${isHighRisk?'border-left:2px solid var(--red); padding-left:8px; background:rgba(248,113,113,0.05);':''}">
+          <span class="img${isLolbin?' lolbin':''}">${prefix}${escHtml(n.image)}</span>
+          ${hasEntropy?'<span class="entropy"> 🔒 high-entropy cmd</span>':''}
+          ${isHighRisk?'<span style="color:var(--red); font-size:10px; font-weight:700;"> [HIGH RISK]</span>':''}
+          <span class="ts"> [pid:${escHtml(n.pid)}] ${escHtml((n.event_time||'').slice(11,19))}</span>
+          ${n.command_line?`<div style="color:var(--dim);font-size:10px;margin-left:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:600px">${escHtml((n.command_line||'').slice(0,120))}</div>`:''}
+        </div>`;
+      }).join('');
+    }
+    document.getElementById('treeCard').style.display = 'block';
+  } catch(e) { showError('Tree error: ' + e.message); }
+}
+
+async function showBeaconing() {
+  if (!RUN_ID) return;
+  try {
+    const resp = await fetch(`/api/beaconing/${RUN_ID}`);
+    const data = await resp.json();
+    const beacons = data.beacons || [];
+    const panel = document.getElementById('beaconPanel');
+    if (!beacons.length) {
+      panel.innerHTML = '<div style="color:var(--dim);text-align:center;padding:20px">No beaconing patterns detected.</div>';
+    } else {
+      panel.innerHTML = `<table><thead><tr>
+        <th>Image</th><th>Destination</th><th>Hits</th><th>Interval</th><th>Jitter</th><th>Confidence</th><th>Description</th>
+      </tr></thead><tbody>${beacons.map(b => `<tr>
+        <td style="color:var(--orange);font-weight:600">${escHtml(b.image)}</td>
+        <td style="color:var(--red)">${escHtml(b.destination_ip)}:${escHtml(b.destination_port)}</td>
+        <td>${b.hit_count}</td>
+        <td>${b.mean_interval_sec}s</td>
+        <td>${b.jitter_pct}%</td>
+        <td>
+          <span class="badge sev-${b.confidence>=90?'critical':(b.confidence>=70?'high':'medium')}">${b.confidence}%</span>
+          ${b.confidence >= 95 ? '<span style="color:var(--red); font-size:9px; font-weight:700;"> [Z-STABLE]</span>' : ''}
+        </td>
+        <td style="color:var(--muted);font-size:11px">${escHtml(b.description)}</td>
+      </tr>`).join('')}</tbody></table>`;
+    }
+    document.getElementById('beaconCard').style.display = 'block';
+  } catch(e) { showError('Beaconing error: ' + e.message); }
+}
+
+async function showIOCs() {
+  if (!RUN_ID) return;
+  try {
+    const resp = await fetch(`/api/iocs/${RUN_ID}`);
+    const data = await resp.json();
+    const iocs = data.iocs || [];
+    document.getElementById('iocCsvLink').href = `/api/iocs/${RUN_ID}/export.csv`;
+    const panel = document.getElementById('iocPanel');
+    if (!iocs.length) {
+      panel.innerHTML = '<div style="color:var(--dim);text-align:center;padding:20px">No IOCs extracted.</div>';
+    } else {
+      const typeColors = {ip:'var(--red)',domain:'var(--orange)',url:'var(--cyan)',sha256:'var(--blue)',sha1:'var(--blue)',md5:'var(--blue)'};
+      panel.innerHTML = `<table><thead><tr><th>Type</th><th>Value</th><th>Source Field</th><th>Confidence</th></tr></thead>
+        <tbody>${iocs.map(ioc => `<tr>
+          <td><span class="badge" style="background:rgba(96,165,250,.15);color:${typeColors[ioc.ioc_type]||'var(--muted)'}">${escHtml(ioc.ioc_type)}</span></td>
+          <td style="font-family:monospace;color:${typeColors[ioc.ioc_type]||'var(--text)'}">${escHtml(ioc.ioc_value)}</td>
+          <td style="color:var(--dim)">${escHtml(ioc.source_field)}</td>
+          <td><div style="display:flex;align-items:center;gap:6px"><span>${ioc.confidence}</span>
+            <div style="width:50px;height:4px;background:rgba(255,255,255,.1);border-radius:2px">
+              <div style="width:${ioc.confidence}%;height:100%;background:var(--blue);border-radius:2px"></div>
+            </div></div></td>
+        </tr>`).join('')}</tbody></table>`;
+    }
+    document.getElementById('iocCard').style.display = 'block';
+  } catch(e) { showError('IOC error: ' + e.message); }
+}
+
+function exportCSV() {
+  if (!lastResults.length) return;
+  const cols = ['event_time','image','parent_image','command_line','computer','event_id','severity','destination_ip'];
+  const header = cols.join(',');
+  const rows = lastResults.map(r => cols.map(c => `"${(r[c]||'').toString().replace(/"/g,'""')}"`).join(','));
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `hunt_results_${Date.now()}.csv`; a.click();
+}
+
+function setLoading(on) {
+  document.getElementById('loadingDiv').style.display = on ? 'block' : 'none';
+  document.getElementById('runBtn').disabled = on;
+}
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg; el.style.display = 'block';
+}
+function hideError() {
+  document.getElementById('errorMsg').style.display = 'none';
+}
+
+// Run query on load if one is provided
+window.addEventListener('load', () => {
+  const q = document.getElementById('queryInput').value.trim();
+  if (q) runQuery();
+});
+</script>
+</body>
+</html>

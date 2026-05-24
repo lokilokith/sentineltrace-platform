@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Investigation Workbench | SentinelTrace</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #0a0c10;
+            --bg-card: #161b22;
+            --accent: #2f81f7;
+            --border: #30363d;
+            --text-main: #c9d1d9;
+            --text-dim: #8b949e;
+            --danger: #f85149;
+            --success: #3fb950;
+            --warning: #d29922;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            height: 60px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 100;
+        }
+
+        .incident-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .incident-id {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--accent);
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: rgba(47, 129, 247, 0.1);
+            border: 1px solid var(--accent);
+        }
+
+        /* Layout */
+        .workbench {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Left Panel - Story */
+        .panel-left {
+            width: 450px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05rem;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .narrative-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
+        .kill-chain-map {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .kc-step {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            background: transparent;
+            opacity: 0.4;
+        }
+
+        .kc-step.active {
+            opacity: 1;
+            background: rgba(47, 129, 247, 0.1);
+            border-color: var(--accent);
+        }
+
+        /* Right Panel - Investigation */
+        .panel-right {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-deep);
+        }
+
+        .tabs {
+            height: 48px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            padding: 0 16px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            padding: 0 24px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        /* Timeline View */
+        .timeline-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .timeline-detail-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            min-height: 160px;
+        }
+
+        .timeline-detail-panel h3 {
+            margin: 0 0 8px 0;
+            font-size: 1rem;
+        }
+
+        .timeline-detail-panel .detail-empty {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        .timeline-viewport {
+            height: calc(100vh - 340px);
+            min-height: 420px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            position: relative;
+            scrollbar-gutter: stable;
+            overscroll-behavior: contain;
+        }
+
+        .timeline-viewport:focus {
+            outline: 2px solid rgba(47, 129, 247, 0.35);
+            outline-offset: 2px;
+        }
+
+        .timeline-spacer {
+            width: 100%;
+        }
+
+        .timeline-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .timeline-toolbar input {
+            min-width: 280px;
+            flex: 1;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-family: inherit;
+        }
+
+        .timeline-status {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .timeline-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .timeline-load-more {
+            background: rgba(47, 129, 247, 0.15);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .timeline-load-more:disabled {
+            opacity: 0.45;
+            cursor: default;
+        }
+
+        .event-node {
+            width: 100%;
+            appearance: none;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            transition: transform 0.2s, border-color 0.2s;
+            cursor: pointer;
+            color: var(--text-main);
+            text-align: left;
+            display: block;
+        }
+
+        .event-node:hover {
+            border-color: var(--accent);
+            transform: translateY(-1px);
+        }
+
+        .event-node:focus {
+            outline: 2px solid rgba(47, 129, 247, 0.45);
+            outline-offset: 2px;
+        }
+
+        .event-node[aria-expanded="true"] {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 1px rgba(47, 129, 247, 0.15);
+        }
+
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            gap: 12px;
+        }
+
+        .event-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .event-id-tag {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--warning);
+        }
+
+        .event-summary {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+            gap: 8px 16px;
+            align-items: start;
+        }
+
+        .event-summary .summary-field {
+            min-width: 0;
+        }
+
+        .summary-label {
+            display: block;
+            font-size: 0.68rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+
+        .summary-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .summary-value.command-line {
+            white-space: normal;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .detail-field {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
+        .detail-key {
+            display: block;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .detail-value {
+            display: block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .raw-json {
+            margin-top: 12px;
+            max-height: 320px;
+            overflow: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .detail-banner {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .detail-banner .detail-title {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .detail-banner .detail-subtitle {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+
+        .detail-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .mini-btn {
+            background: rgba(47, 129, 247, 0.12);
+            color: var(--accent);
+            border: 1px solid rgba(47, 129, 247, 0.35);
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .mini-btn:disabled {
+            opacity: 0.55;
+            cursor: default;
+        }
+
+        /* Verdict Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .verdict-form {
+            background: var(--bg-card);
+            width: 500px;
+            padding: 32px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        select, textarea {
+            width: 100%;
+            background: var(--bg-deep);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 10px;
+            border-radius: 6px;
+            font-family: inherit;
+        }
+
+        .btn-submit {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            width: 100%;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* ── [10/10] SOC Banners ── */
+        .decision-banner {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid transparent;
+        }
+        .decision-banner.ESCALATE { background: rgba(248, 81, 73, 0.15); color: var(--danger); border-color: var(--danger); }
+        .decision-banner.INVESTIGATE { background: rgba(210, 153, 34, 0.15); color: var(--warning); border-color: var(--warning); }
+        .decision-banner.MONITOR { background: rgba(47, 129, 247, 0.15); color: var(--accent); border-color: var(--accent); }
+        .decision-banner.BASELINE { background: rgba(63, 185, 80, 0.15); color: var(--success); border-color: var(--success); }
+
+        .integrity-warning {
+            background: rgba(210, 153, 34, 0.1);
+            color: var(--warning);
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-left: 3px solid var(--warning);
+        }
+
+        /* ── [9.6/10 Locked] Empty States ── */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 48px 24px;
+            text-align: center;
+            color: var(--text-dim);
+        }
+
+        .empty-state h3 {
+            margin: 0 0 8px 0;
+            color: var(--text-main);
+            font-size: 1.2rem;
+        }
+
+        .empty-state p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        .empty-state.error h3 {
+            color: var(--danger);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="incident-meta">
+            <span class="incident-id" id="inc-id">LOADING...</span>
+            <span class="status-badge" id="inc-status">New</span>
+            <span style="color: var(--text-dim); font-size: 0.85rem;" id="inc-computer"></span>
+        </div>
+        <div class="actions">
+            <button class="btn-submit" onclick="showVerdictModal()">Submit Verdict</button>
+        </div>
+    </div>
+
+    <div class="workbench">
+        <!-- LEFT: STORY & META -->
+        <div class="panel-left">
+            <div class="section-title">Attack Narrative</div>
+            <div class="narrative-card" id="narrative-text">
+                Analyzing causal chain...
+            </div>
+
+            <div class="section-title">Explainability</div>
+            <div class="narrative-card" id="explainability-text">
+                Waiting for rationale...
+            </div>
+
+            <div class="section-title">Recommended Pivots</div>
+            <div class="narrative-card" id="pivot-text">
+                Waiting for pivot guidance...
+            </div>
+
+            <div id="decision-wrapper"></div>
+
+            <div class="section-title">Kill Chain Progress</div>
+            <div class="kill-chain-map" id="kc-map">
+                <div class="kc-step" id="kc-Execution"><span>Execution</span></div>
+                <div class="kc-step" id="kc-Persistence"><span>Persistence</span></div>
+                <div class="kc-step" id="kc-Lateral-Movement"><span>Lateral Movement</span></div>
+                <div class="kc-step" id="kc-Command-and-Control"><span>C2 / Exf</span></div>
+                <div class="kc-step" id="kc-Actions-on-Objectives"><span>Actions on Objectives</span></div>
+            </div>
+
+            <div class="section-title">Risk Analysis</div>
+            <div style="font-size: 2rem; font-weight: 700; color: var(--danger);" id="risk-score">--</div>
+            <div style="color: var(--text-dim); font-size: 0.85rem;">Confidence: <span id="confidence">--</span>%</div>
+        </div>
+
+        <!-- RIGHT: INVESTIGATION DATA -->
+        <div class="panel-right">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('timeline')">Timeline</button>
+                <button class="tab-btn" onclick="switchTab('evidence')">Evidence</button>
+                <button class="tab-btn" onclick="switchTab('tree')">Process Tree</button>
+            </div>
+            
+            <div class="tab-content" id="tab-timeline">
+                <div class="timeline-toolbar">
+                    <input id="timeline-search-input" type="search" placeholder="Search evidence by UID, image, command line, host">
+                    <div class="timeline-actions">
+                        <button class="timeline-load-more" id="timeline-search-button" type="button">Search evidence</button>
+                        <button class="timeline-load-more" id="timeline-reset-button" type="button" style="background:transparent">Reset</button>
+                    </div>
+                    <div class="timeline-status" id="timeline-status"></div>
+                </div>
+                <div class="integrity-warning" id="timeline-integrity-warning" style="display:none; margin-bottom:16px;"></div>
+                <div class="timeline-detail-panel" id="timeline-detail-panel" aria-live="polite">
+                    <div class="detail-empty">Select an event to expand the full forensic record.</div>
+                </div>
+                <div class="timeline-viewport" id="timeline-viewport" tabindex="0" aria-label="Incident evidence timeline">
+                    <div class="timeline-spacer" id="timeline-spacer-top"></div>
+                    <div class="timeline-container" id="timeline-list" role="list"></div>
+                    <div class="timeline-spacer" id="timeline-spacer-bottom"></div>
+                </div>
+                <div style="margin-top:16px;display:flex;justify-content:center">
+                    <button class="timeline-load-more" id="timeline-load-more" type="button" style="display:none">Load more evidence</button>
+                </div>
+            </div>
+            <div class="tab-content" id="tab-evidence" style="display:none">
+                <div id="evidence-list" style="color:var(--text-dim); font-size: 0.9rem;">
+                    Collect evidence from the timeline to see it here.
+                </div>
+            </div>
+            <div class="tab-content" id="tab-tree" style="display:none">
+                <div id="process-tree" style="color:var(--text-dim); font-size: 0.9rem;">
+                    Causal process tree analysis loading...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VERDICT MODAL -->
+    <div class="modal-overlay" id="verdict-modal">
+        <div class="verdict-form">
+            <h2 style="margin-top:0">Finalize Investigation</h2>
+            <div class="form-group">
+                <label class="form-label">Disposition</label>
+                <select id="v-type">
+                    <option>True Positive — Confirmed Attack</option>
+                    <option>True Positive — Attempted Attack</option>
+                    <option>False Positive — Legitimate Activity</option>
+                    <option>False Positive — Misconfigured Rule</option>
+                    <option>Benign — Known Tool</option>
+                    <option>Benign — Authorized Test</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Analyst Reasoning (Min 10 chars)</label>
+                <textarea id="v-reason" rows="4" placeholder="Be specific: why is this the outcome? Indicators used?"></textarea>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button class="btn-submit" onclick="submitVerdict()">Confirm & Learn</button>
+                <button class="btn-submit" style="background:#30363d" onclick="hideVerdictModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const INCIDENT_ID = "{{ incident_id }}";
+        const TIMELINE_PAGE_SIZE = 250;
+        const TIMELINE_ROW_HEIGHT = 126;
+        const TIMELINE_OVERSCAN = 8;
+
+        const timelineState = {
+            offset: 0,
+            limit: TIMELINE_PAGE_SIZE,
+            total: 0,
+            hasMore: false,
+            loading: false,
+            query: "",
+            events: [],
+            detailCache: {},
+            selectedEventUid: null,
+            visibleStart: 0,
+            visibleEnd: 0,
+        };
+
+        let timelineRenderQueued = false;
+        let timelineViewportBound = false;
+
+        function escHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, ch => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[ch]));
+        }
+
+        function getSeverity(score) {
+            if (score >= 70) return "high";
+            if (score >= 40) return "medium";
+            return "low";
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+            document.getElementById(`tab-${tab}`).style.display = 'block';
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            if (window.event) {
+                window.event.currentTarget.classList.add('active');
+            }
+            if (tab === 'timeline') {
+                queueTimelineRender(true);
+            }
+        }
+
+        function setTimelineStatus(text) {
+            const status = document.getElementById('timeline-status');
+            if (status) {
+                status.textContent = text;
+            }
+        }
+
+        function updateTimelineControls(meta = {}) {
+            const loadMore = document.getElementById('timeline-load-more');
+            if (!loadMore) {
+                return;
+            }
+
+            loadMore.disabled = !!timelineState.loading;
+            loadMore.style.display = meta.has_more ? 'inline-flex' : 'none';
+
+            const total = Number.isFinite(meta.total) ? meta.total : timelineState.total;
+            const loaded = timelineState.events.length;
+            const visibleStart = timelineState.visibleStart + 1;
+            const visibleEnd = timelineState.visibleEnd || timelineState.visibleStart + 1;
+            const prefix = timelineState.query ? `Search: ${timelineState.query}` : 'Evidence timeline';
+            if (total > 0) {
+                setTimelineStatus(`${prefix} | visible ${visibleStart}-${visibleEnd} of ${total} | loaded ${loaded}`);
+            } else {
+                setTimelineStatus(`${prefix} | loaded ${loaded}`);
+            }
+        }
+
+        function getTimelineViewport() {
+            return document.getElementById('timeline-viewport');
+        }
+
+        function getTimelineList() {
+            return document.getElementById('timeline-list');
+        }
+
+        function getTimelineSpacerTop() {
+            return document.getElementById('timeline-spacer-top');
+        }
+
+        function getTimelineSpacerBottom() {
+            return document.getElementById('timeline-spacer-bottom');
+        }
+
+        function getTimelineDetailPanel() {
+            return document.getElementById('timeline-detail-panel');
+        }
+
+        function renderTimelineDetailPanel(content) {
+            const panel = getTimelineDetailPanel();
+            if (!panel) return;
+
+            if (!content) {
+                panel.innerHTML = '<div class="detail-empty">Select an event to expand the full forensic record.</div>';
+                return;
+            }
+
+            if (content.loading) {
+                panel.innerHTML = `
+                    <div class="detail-banner">
+                        <div>
+                            <div class="detail-title">Loading full forensic record...</div>
+                            <div class="detail-subtitle">Event ${escHtml(content.event_uid || 'unknown')}</div>
+                        </div>
+                    </div>
+                    <div class="detail-empty" style="margin-top:12px;">Fetching the complete event payload on demand.</div>`;
+                return;
+            }
+
+            if (content.error) {
+                panel.innerHTML = `
+                    <div class="detail-banner">
+                        <div>
+                            <div class="detail-title">Unable to load event details</div>
+                            <div class="detail-subtitle">${escHtml(content.error)}</div>
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            const keys = Object.keys(content);
+            const preferred = [
+                'event_uid', 'event_time', 'event_id', 'computer', 'image', 'parent_image',
+                'command_line', 'user', 'pid', 'ppid', 'dst_ip', 'destination_ip', 'src_ip',
+                'dst_port', 'source_port', 'rule_id', 'rule_name', 'mitre_id', 'mitre_tactic',
+                'severity', 'network'
+            ];
+            const orderedKeys = [
+                ...preferred.filter(key => keys.includes(key)),
+                ...keys.filter(key => !preferred.includes(key))
+            ];
+
+            const fieldsHtml = orderedKeys.map(key => {
+                const value = content[key];
+                const renderedValue = value === null || value === undefined
+                    ? '—'
+                    : typeof value === 'object'
+                        ? JSON.stringify(value, null, 2)
+                        : String(value);
+                return `
+                    <div class="detail-field">
+                        <span class="detail-key">${escHtml(key.replace(/_/g, ' '))}</span>
+                        <span class="detail-value">${escHtml(renderedValue)}</span>
+                    </div>`;
+            }).join('');
+
+            panel.innerHTML = `
+                <div class="detail-banner">
+                    <div>
+                        <div class="detail-title">Event ${escHtml(content.event_uid || 'unknown')}</div>
+                        <div class="detail-subtitle">${escHtml(content.event_time || 'Unknown time')} · ${escHtml(content.image || 'Unknown image')}</div>
+                    </div>
+                    <div class="detail-actions">
+                        <button class="mini-btn" type="button" id="timeline-focus-row">Focus row</button>
+                        <button class="mini-btn" type="button" id="timeline-copy-json">Copy JSON</button>
+                    </div>
+                </div>
+                <div class="detail-grid">${fieldsHtml}</div>
+                <details open>
+                    <summary style="cursor:pointer; color:var(--text-dim); margin-top:12px;">Full event JSON</summary>
+                    <pre class="raw-json">${escHtml(JSON.stringify(content, null, 2))}</pre>
+                </details>`;
+
+            const focusButton = panel.querySelector('#timeline-focus-row');
+            if (focusButton) {
+                focusButton.addEventListener('click', () => {
+                    const row = getTimelineList()?.querySelector(`[data-event-uid="${CSS.escape(String(content.event_uid || ''))}"]`);
+                    if (row) {
+                        row.scrollIntoView({block: 'center'});
+                        row.focus({preventScroll: true});
+                    }
+                });
+            }
+
+            const copyButton = panel.querySelector('#timeline-copy-json');
+            if (copyButton) {
+                copyButton.addEventListener('click', async () => {
+                    try {
+                        await navigator.clipboard.writeText(JSON.stringify(content, null, 2));
+                        copyButton.textContent = 'Copied';
+                        setTimeout(() => { copyButton.textContent = 'Copy JSON'; }, 1200);
+                    } catch (error) {
+                        copyButton.textContent = 'Copy failed';
+                        setTimeout(() => { copyButton.textContent = 'Copy JSON'; }, 1200);
+                    }
+                });
+            }
+        }
+
+        function makeEventNode(ev) {
+            const node = document.createElement('button');
+            node.type = 'button';
+            node.className = 'event-node';
+            node.setAttribute('role', 'listitem');
+            node.dataset.eventUid = ev.event_uid || '';
+            node.setAttribute('aria-expanded', String(timelineState.selectedEventUid === ev.event_uid));
+
+            node.innerHTML = `
+                <div class="event-header">
+                    <span class="event-id-tag">ID: ${escHtml(ev.event_uid || '')}</span>
+                    <span class="event-time">${escHtml(ev.event_time || 'Unknown')}</span>
+                </div>
+                <div class="event-summary">
+                    <div class="summary-field">
+                        <span class="summary-label">Image</span>
+                        <span class="summary-value">${escHtml(ev.image || 'Unknown')}</span>
+                    </div>
+                    <div class="summary-field">
+                        <span class="summary-label">Computer</span>
+                        <span class="summary-value">${escHtml(ev.computer || 'Unknown')}</span>
+                    </div>
+                    <div class="summary-field" style="grid-column: 1 / -1;">
+                        <span class="summary-label">Command line</span>
+                        <span class="summary-value command-line">${escHtml(ev.command_line || '—')}</span>
+                    </div>
+                    <div class="summary-field">
+                        <span class="summary-label">Parent image</span>
+                        <span class="summary-value">${escHtml(ev.parent_image || '—')}</span>
+                    </div>
+                    <div class="summary-field">
+                        <span class="summary-label">Network</span>
+                        <span class="summary-value">${escHtml(ev.network || '—')}</span>
+                    </div>
+                </div>`;
+
+            node.addEventListener('click', () => selectTimelineEvent(ev.event_uid));
+            node.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    selectTimelineEvent(ev.event_uid);
+                }
+            });
+            return node;
+        }
+
+        function queueTimelineRender(force = false) {
+            if (timelineRenderQueued && !force) {
+                return;
+            }
+            timelineRenderQueued = true;
+            requestAnimationFrame(() => {
+                timelineRenderQueued = false;
+                renderTimelineWindow();
+            });
+        }
+
+        function renderTimelineWindow() {
+            const viewport = getTimelineViewport();
+            const list = getTimelineList();
+            const spacerTop = getTimelineSpacerTop();
+            const spacerBottom = getTimelineSpacerBottom();
+            if (!viewport || !list || !spacerTop || !spacerBottom) return;
+
+            const events = timelineState.events;
+            if (!events.length) {
+                list.innerHTML = '';
+                spacerTop.style.height = '0px';
+                spacerBottom.style.height = '0px';
+                return;
+            }
+
+            const visibleCount = Math.ceil(viewport.clientHeight / TIMELINE_ROW_HEIGHT) + (TIMELINE_OVERSCAN * 2);
+            const start = Math.max(Math.floor(viewport.scrollTop / TIMELINE_ROW_HEIGHT) - TIMELINE_OVERSCAN, 0);
+            const end = Math.min(start + visibleCount, events.length);
+            timelineState.visibleStart = start;
+            timelineState.visibleEnd = end;
+
+            spacerTop.style.height = `${start * TIMELINE_ROW_HEIGHT}px`;
+            spacerBottom.style.height = `${Math.max(events.length - end, 0) * TIMELINE_ROW_HEIGHT}px`;
+
+            const fragment = document.createDocumentFragment();
+            for (let index = start; index < end; index += 1) {
+                fragment.appendChild(makeEventNode(events[index]));
+            }
+
+            list.innerHTML = '';
+            list.appendChild(fragment);
+
+            const selectedRow = list.querySelector(`[data-event-uid="${CSS.escape(String(timelineState.selectedEventUid || ''))}"]`);
+            if (selectedRow) {
+                selectedRow.setAttribute('aria-expanded', 'true');
+            }
+
+            updateTimelineControls({has_more: timelineState.hasMore, total: timelineState.total});
+        }
+
+        function bindTimelineViewport() {
+            if (timelineViewportBound) {
+                return;
+            }
+            const viewport = getTimelineViewport();
+            if (!viewport) {
+                return;
+            }
+
+            timelineViewportBound = true;
+            viewport.addEventListener('scroll', () => {
+                queueTimelineRender();
+                maybePrefetchTimeline();
+            }, {passive: true});
+            window.addEventListener('resize', () => queueTimelineRender(true), {passive: true});
+        }
+
+        function maybePrefetchTimeline() {
+            const viewport = getTimelineViewport();
+            if (!viewport || timelineState.loading || !timelineState.hasMore) {
+                return;
+            }
+
+            const distanceToBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+            if (distanceToBottom < (TIMELINE_ROW_HEIGHT * 4)) {
+                fetchTimelinePage();
+            }
+        }
+
+        async function fetchEventDetail(eventUid) {
+            if (timelineState.detailCache[eventUid]) {
+                return timelineState.detailCache[eventUid];
+            }
+
+            const response = await fetch(`/api/incidents/${INCIDENT_ID}/events/${encodeURIComponent(eventUid)}`);
+            if (!response.ok) {
+                throw new Error(`Event detail API failed with status: ${response.status}`);
+            }
+
+            const payload = await response.json();
+            const event = payload.event || payload;
+            timelineState.detailCache[eventUid] = event;
+            return event;
+        }
+
+        async function selectTimelineEvent(eventUid) {
+            const existing = timelineState.events.find(event => String(event.event_uid) === String(eventUid));
+            timelineState.selectedEventUid = String(eventUid);
+            queueTimelineRender(true);
+            renderTimelineDetailPanel({loading: true, event_uid: eventUid});
+
+            if (existing) {
+                renderTimelineDetailPanel(existing);
+            }
+
+            try {
+                const detail = await fetchEventDetail(eventUid);
+                renderTimelineDetailPanel(detail);
+                queueTimelineRender(true);
+            } catch (error) {
+                console.error('[CausalChain] Event detail load failed:', error);
+                renderTimelineDetailPanel({error: 'The full event record could not be loaded.'});
+            }
+        }
+
+        function renderTimelineEmpty(title, message) {
+            const list = getTimelineList();
+            const spacerTop = getTimelineSpacerTop();
+            const spacerBottom = getTimelineSpacerBottom();
+            const warning = document.getElementById('timeline-integrity-warning');
+            if (!list || !spacerTop || !spacerBottom) return;
+            list.innerHTML = `
+                <div class="empty-state" style="width:100%;">
+                    <h3>${escHtml(title)}</h3>
+                    <p>${escHtml(message)}</p>
+                </div>`;
+            spacerTop.style.height = '0px';
+            spacerBottom.style.height = '0px';
+            if (warning && !warning.textContent.trim()) {
+                warning.style.display = 'none';
+            }
+        }
+
+        async function fetchTimelinePage({reset = false} = {}) {
+            if (timelineState.loading) return;
+            timelineState.loading = true;
+
+            const loadMore = document.getElementById('timeline-load-more');
+            if (loadMore) {
+                loadMore.disabled = true;
+            }
+
+            try {
+                const params = new URLSearchParams({
+                    offset: reset ? '0' : String(timelineState.offset),
+                    limit: String(timelineState.limit),
+                });
+                if (timelineState.query) {
+                    params.set('q', timelineState.query);
+                }
+
+                const res = await fetch(`/api/incidents/${INCIDENT_ID}/timeline?${params.toString()}`);
+                if (!res.ok) {
+                    throw new Error(`Timeline API failed with status: ${res.status}`);
+                }
+
+                const data = await res.json();
+                const events = Array.isArray(data.timeline_page) ? data.timeline_page : Array.isArray(data.timeline) ? data.timeline : [];
+                const meta = data.timeline_meta || {};
+
+                if (reset) {
+                    timelineState.offset = 0;
+                    timelineState.events = [];
+                    timelineState.detailCache = {};
+                    timelineState.selectedEventUid = null;
+                    timelineState.visibleStart = 0;
+                    timelineState.visibleEnd = 0;
+                    const viewport = getTimelineViewport();
+                    if (viewport) {
+                        viewport.scrollTop = 0;
+                    }
+                    renderTimelineDetailPanel(null);
+                }
+
+                if (!events.length && meta.total === 0) {
+                    timelineState.events = [];
+                    timelineState.total = 0;
+                    timelineState.hasMore = false;
+                    renderTimelineEmpty(
+                        timelineState.query ? 'No matching evidence found' : 'No threats detected',
+                        timelineState.query ? 'No events matched the current search across the full incident timeline.' : 'This run did not produce suspicious activity clusters.'
+                    );
+                } else {
+                    timelineState.events = timelineState.events.concat(events);
+                }
+
+                timelineState.offset = Number.isFinite(meta.next_offset) ? meta.next_offset : (timelineState.offset + events.length);
+                timelineState.total = Number.isFinite(meta.total) ? meta.total : timelineState.total;
+                timelineState.hasMore = !!meta.has_more;
+
+                queueTimelineRender(true);
+                updateTimelineControls(meta);
+
+                if (!timelineState.selectedEventUid && timelineState.events.length) {
+                    selectTimelineEvent(timelineState.events[0].event_uid);
+                }
+
+                if (timelineState.hasMore) {
+                    maybePrefetchTimeline();
+                }
+            } catch (error) {
+                console.error('[CausalChain] Timeline load failed:', error);
+                renderTimelineEmpty('Critical error loading investigative data', 'The evidence timeline could not be loaded.');
+            } finally {
+                timelineState.loading = false;
+                if (loadMore) {
+                    loadMore.disabled = false;
+                    loadMore.style.display = timelineState.hasMore ? 'inline-flex' : 'none';
+                }
+            }
+        }
+
+        function attachTimelineObserver() {
+            // Scroll-based prefetch handles loading; keep the hook for compatibility.
+        }
+
+        async function resetTimelineSearch() {
+            timelineState.query = '';
+            const input = document.getElementById('timeline-search-input');
+            if (input) input.value = '';
+            timelineState.offset = 0;
+            timelineState.total = 0;
+            await fetchTimelinePage({reset: true});
+        }
+
+        async function loadData() {
+            document.getElementById('narrative-text').innerText = "Analyzing causal chain...";
+
+            try {
+                const res = await fetch(`/api/incidents/${INCIDENT_ID}`);
+                if (!res.ok) throw new Error(`API failed with status: ${res.status}`);
+
+                const data = await res.json();
+
+                if (!data.incident) {
+                    document.getElementById('narrative-text').innerText = "Incident not found in the evidence database.";
+                    return;
+                }
+
+                document.getElementById('inc-id').innerText = data.incident.incident_id || INCIDENT_ID;
+                document.getElementById('inc-status').innerText = data.incident.status || 'New';
+                document.getElementById('inc-computer').innerText = data.incident.computer || 'Unknown';
+
+                document.getElementById('narrative-text').innerText = (data.attack_story && data.attack_story.summary) || "No automated narrative available.";
+
+                const attackBases = Array.isArray(data.incident.attack_conf_basis) ? data.incident.attack_conf_basis : [];
+                const storyBullets = Array.isArray(data.attack_story?.bullets) ? data.attack_story.bullets : [];
+                const pivotHints = Array.isArray(data.attack_story?.pivot_hints) ? data.attack_story.pivot_hints : [];
+                const responseTasks = Array.isArray(data.incident.response_tasks) ? data.incident.response_tasks : [];
+                const campaignName = data.attack_story?.campaign_name || data.incident.campaign_name || 'Suspicious Process Chain';
+                const actionReason = data.incident.action_reason || data.incident.recommended_action_reason || (attackBases[0] || 'Analysis complete.');
+                const actionPriority = data.incident.action_priority || data.incident.priority || 'P4';
+
+                const explainHtml = [
+                    `<div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-dim);margin-bottom:8px">${escHtml(campaignName)}</div>`,
+                    storyBullets.length ? `<div style="display:grid;gap:8px;margin-bottom:10px">${storyBullets.slice(0, 4).map(b => `<div style="padding-left:10px;border-left:2px solid var(--cyan);font-size:12px;line-height:1.45">${escHtml(b)}</div>`).join('')}</div>` : '',
+                    attackBases.length ? `<div style="display:grid;gap:8px">${attackBases.slice(0, 4).map(b => `<div style="padding-left:10px;border-left:2px solid var(--warning);font-size:12px;line-height:1.45">${escHtml(b)}</div>`).join('')}</div>` : '<div style="color:var(--text-dim);font-size:12px">No confidence rationale available.</div>'
+                ].join('');
+                document.getElementById('explainability-text').innerHTML = explainHtml;
+
+                const pivotHtml = [
+                    pivotHints.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${pivotHints.slice(0, 4).map(h => `<span style="padding:4px 8px;border-radius:999px;background:rgba(96,165,250,.12);color:var(--cyan);font-size:11px;border:1px solid rgba(96,165,250,.2)">${escHtml(h)}</span>`).join('')}</div>` : '<div style="color:var(--text-dim);font-size:12px;margin-bottom:8px">No pivot hints available.</div>',
+                    responseTasks.length ? `<div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-dim);margin-bottom:8px">Recommended next actions</div>${responseTasks.slice(0, 4).map(t => `<div style="padding-left:10px;border-left:2px solid var(--warning);font-size:12px;line-height:1.45;margin-bottom:6px"><span style="color:var(--warning);font-weight:700;font-size:10px;margin-right:8px">PIVOT</span>${escHtml(t.task || '')}</div>`).join('')}` : ''
+                ].join('');
+                document.getElementById('pivot-text').innerHTML = pivotHtml;
+
+                const score = Number(data.incident.attack_conf_score ?? data.incident.risk_score ?? 0);
+                const severity = getSeverity(score);
+                const scoreColor = severity === 'high' ? 'var(--danger)' : (severity === 'medium' ? 'var(--warning)' : 'var(--success)');
+
+                document.getElementById('risk-score').innerText = score;
+                document.getElementById('risk-score').style.color = scoreColor;
+                document.getElementById('confidence').innerText = Number(data.incident.confidence ?? 0);
+
+                const action = data.incident.recommended_action || 'BASELINE';
+                const bannerWrap = document.getElementById('decision-wrapper');
+                bannerWrap.innerHTML = `<div class="decision-banner ${action}">⚠️ Recommended: ${escHtml(action)} <span style="margin-left:8px;font-size:11px;opacity:.85">Priority ${escHtml(actionPriority)}</span></div><div style="margin-top:8px;color:var(--text-dim);font-size:12px;line-height:1.45">${escHtml(actionReason)}</div>`;
+
+                if (data.timeline_valid === false) {
+                    const warning = document.getElementById('timeline-integrity-warning');
+                    if (warning) {
+                        warning.textContent = 'Content Integrity Alert: Analysis timeline may be incomplete or invalid.';
+                        warning.style.display = 'flex';
+                    }
+                } else {
+                    const warning = document.getElementById('timeline-integrity-warning');
+                    if (warning) {
+                        warning.textContent = '';
+                        warning.style.display = 'none';
+                    }
+                }
+
+                const chain = data.attack_story?.kill_chain || [];
+                const KC_MAP = {
+                    "Command and Control": "Command-and-Control",
+                    "Actions on Objectives": "Actions-on-Objectives",
+                    "Lateral Movement": "Lateral-Movement"
+                };
+
+                document.querySelectorAll('.kc-step').forEach(el => el.classList.remove('active'));
+                chain.forEach(stage => {
+                    const norm = KC_MAP[stage] || (stage || "").replace(/\s+/g, '-');
+                    const kcStep = document.getElementById(`kc-${norm}`);
+                    if (kcStep) kcStep.classList.add('active');
+                });
+
+                if (chain.length === 0 && data.incident.kill_chain_stage) {
+                    const stage = data.incident.kill_chain_stage;
+                    const norm = KC_MAP[stage] || (stage || "").replace(/\s+/g, '-');
+                    const kcStep = document.getElementById(`kc-${norm}`);
+                    if (kcStep) kcStep.classList.add('active');
+                }
+
+                if (data.status === "processing") {
+                    renderTimelineEmpty('Analysis in progress...', 'SentinelTrace is reconstructing the causal chain. This page will update automatically.');
+                    setTimeout(loadData, 3000);
+                    return;
+                }
+
+                if (data.status === "failed") {
+                    renderTimelineEmpty('Analysis failed', 'A critical engine error occurred during reconstruction.');
+                    return;
+                }
+
+                const page = Array.isArray(data.timeline_page) ? data.timeline_page : Array.isArray(data.timeline) ? data.timeline : [];
+                const meta = data.timeline_meta || {};
+                timelineState.limit = Number.isFinite(meta.limit) ? meta.limit : TIMELINE_PAGE_SIZE;
+                timelineState.offset = Number.isFinite(meta.next_offset) ? meta.next_offset : page.length;
+                timelineState.total = Number.isFinite(meta.total) ? meta.total : page.length;
+                timelineState.hasMore = !!meta.has_more;
+                timelineState.query = '';
+                timelineState.events = page.slice();
+                timelineState.detailCache = {};
+                timelineState.selectedEventUid = null;
+
+                bindTimelineViewport();
+                queueTimelineRender(true);
+                updateTimelineControls(meta);
+                attachTimelineObserver();
+
+                if (timelineState.events.length) {
+                    selectTimelineEvent(timelineState.events[0].event_uid);
+                } else {
+                    renderTimelineDetailPanel(null);
+                }
+
+                const searchButton = document.getElementById('timeline-search-button');
+                const searchInput = document.getElementById('timeline-search-input');
+                const resetButton = document.getElementById('timeline-reset-button');
+                const loadMoreButton = document.getElementById('timeline-load-more');
+
+                if (searchButton && !searchButton.dataset.bound) {
+                    searchButton.dataset.bound = '1';
+                    searchButton.addEventListener('click', async () => {
+                        const value = (searchInput?.value || '').trim();
+                        timelineState.query = value;
+                        timelineState.offset = 0;
+                        await fetchTimelinePage({reset: true});
+                    });
+                }
+
+                if (resetButton && !resetButton.dataset.bound) {
+                    resetButton.dataset.bound = '1';
+                    resetButton.addEventListener('click', resetTimelineSearch);
+                }
+
+                if (searchInput && !searchInput.dataset.bound) {
+                    searchInput.dataset.bound = '1';
+                    searchInput.addEventListener('keydown', async (event) => {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            timelineState.query = searchInput.value.trim();
+                            timelineState.offset = 0;
+                            await fetchTimelinePage({reset: true});
+                        }
+                    });
+                }
+
+                if (loadMoreButton && !loadMoreButton.dataset.bound) {
+                    loadMoreButton.dataset.bound = '1';
+                    loadMoreButton.addEventListener('click', async () => {
+                        await fetchTimelinePage();
+                    });
+                }
+            } catch (e) {
+                console.error("[CausalChain] Load failed:", e);
+                document.getElementById('narrative-text').innerText = "Critical error loading investigative data.";
+            }
+        }
+
+        function showVerdictModal() { document.getElementById('verdict-modal').style.display = 'flex'; }
+        function hideVerdictModal() { document.getElementById('verdict-modal').style.display = 'none'; }
+
+        async function submitVerdict() {
+            const reason = document.getElementById('v-reason').value;
+            if (reason.length < 10) {
+                alert("Please provide at least 10 characters of reasoning.");
+                return;
+            }
+
+            const payload = {
+                incident_id: INCIDENT_ID,
+                verdict: document.getElementById('v-type').value,
+                reason: reason,
+                evidence_event_uids: []
+            };
+
+            const res = await fetch('/api/verdict/submit', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert('Verdict recorded. System has adapted to this pattern.');
+                window.location.reload();
+            } else {
+                const err = await res.json();
+                alert('Error: ' + err.error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>
