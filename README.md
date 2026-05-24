@@ -1,272 +1,307 @@
-# SentinelTrace – Endpoint Telemetry Correlation & Threat Hunting Framework
+# SentinelTrace Platform
 
-SentinelTrace is a **baseline-aware endpoint threat hunting framework** designed to help SOC analysts identify **high-confidence malicious activity** from noisy Windows Sysmon telemetry.
-
-Instead of generating large volumes of alerts, SentinelTrace focuses on **behavioral correlation, kill chain progression, and confidence-driven prioritization** to surface the small percentage of events that actually require investigation.
-
-This project is built as a **personal SOC lab and final-year project**, modeled on real SOC investigation workflows rather than academic log analysis.
+SOC-focused endpoint telemetry analysis and threat hunting platform built using Sysmon event logs, behavioral correlation, MITRE ATT&CK mapping, and investigation-oriented analytics.
 
 ---
 
-## Why SentinelTrace Exists
+# Overview
 
-Modern Windows endpoints generate **thousands of Sysmon events per day**.  
-Most are harmless background activity.
+SentinelTrace is a cybersecurity-focused investigation platform designed to analyze historical Sysmon telemetry and reconstruct suspicious activity chains through behavioral correlation, threat scoring, and ATT&CK-aligned analytics.
 
-The real SOC challenge is:
+The platform focuses on:
 
-- Distinguishing **baseline noise** from genuine attack behavior  
-- Understanding **multi-step kill chain activity**, not isolated events  
-- Prioritizing investigations when analyst time is limited  
-- Reducing **alert fatigue** without missing real threats  
+- endpoint telemetry analysis
+- attack timeline reconstruction
+- campaign correlation
+- LOLBIN detection
+- analyst-oriented investigation workflows
+- baseline-aware threat scoring
 
-SentinelTrace was designed to address these exact problems.
-
----
-
-## What SentinelTrace Does
-
-SentinelTrace transforms raw endpoint telemetry into **actionable investigation context** by:
-
-- Ingesting Sysmon XML logs from Windows endpoints  
-- Parsing and normalizing event data into structured telemetry  
-- Learning **baseline execution patterns** per host and process  
-- Detecting **behavioral bursts** that deviate from baseline  
-- Mapping activity to **MITRE ATT&CK tactics and kill chain stages**  
-- Correlating related events into attack sequences  
-- Assigning **confidence scores** to prioritize analyst attention  
-- Explaining findings in plain English for rapid triage  
-
-Think of SentinelTrace as a **signal amplifier**, not an alert generator.
+Rather than acting as a traditional SIEM ingestion pipeline, SentinelTrace is designed as an offline threat hunting and forensic investigation environment for SOC-oriented workflows.
 
 ---
 
-## Who This Is For
+# Core Features
 
-- SOC Analysts (L1 / L2)  
-- Threat Hunters  
-- Incident Responders  
-- Blue Team students and labs  
-- Security engineering trainees  
+## Sysmon Telemetry Analysis
 
-This is **not a SIEM replacement**.  
-It is a focused **endpoint threat hunting and analysis framework**.
+- Parses Windows Sysmon XML logs
+- Extracts process, network, parent-child, and command-line activity
+- Normalizes endpoint telemetry for investigation workflows
 
 ---
 
-## Core Capabilities
+## Behavioral Correlation Engine
 
-### Baseline-Aware Detection
-- Learns normal execution behavior per endpoint  
-- Suppresses expected high-volume processes  
-- Prevents alerting on known benign patterns  
+- Correlates suspicious event sequences
+- Detects behavioral attack chains
+- Links related telemetry into investigation campaigns
 
-### Behavioral Burst Detection
-- Identifies sudden spikes in execution or network activity  
-- Groups related events into behavioral bursts  
-- Differentiates sustained activity from short-lived noise  
+### Examples
 
-### Kill Chain & MITRE ATT&CK Mapping
-- Maps activity to the following stages:
-  - Execution  
-  - Persistence  
-  - Privilege Escalation  
-  - Command & Control  
-  - Actions on Objectives  
-- Higher kill chain progression increases confidence  
-
-### Correlation-Driven Analysis
-- Links execution, network, and persistence activity  
-- Treats attacks as **campaigns**, not single alerts  
-- Builds investigation context automatically  
-
-### Confidence-Based Prioritization
-- Assigns confidence scores (0–100) based on:
-  - Kill chain progression  
-  - Behavioral deviation from baseline  
-  - Correlation strength  
+- Encoded PowerShell execution
+- LOLBIN abuse
+- Suspicious parent-child process chains
+- Lateral movement indicators
+- Persistence behavior
 
 ---
 
-## Example: Signal vs Noise
+## MITRE ATT&CK Mapping
 
-### Noise (Baseline Behavior)
+- Maps telemetry into ATT&CK tactics and techniques
+- Context-aware enrichment for:
 
-| Process               | Executions | Rate      | Baseline State | Confidence |
-|----------------------|------------|-----------|----------------|------------|
-| splunk-optimize.exe  | 39,673     | ~110/min  | Stable         | 5          |
-
-**Interpretation:**  
-High-volume but expected behavior. No action required.
-
----
-
-### Signal (Suspicious Behavior)
-
-| Process         | Executions | Rate    | Kill Chain                         | Confidence |
-|-----------------|------------|---------|------------------------------------|------------|
-| powershell.exe  | 47         | ~8/min  | Execution → C2 → Persistence       | 78         |
-
-**Interpretation:**  
-Abnormal frequency with multi-stage kill chain progression. Requires investigation.
+  - PowerShell
+  - cmd.exe
+  - rundll32
+  - schtasks
+  - regsvr32
+  - Remote execution patterns
 
 ---
 
-## Architecture Overview
+## Threat Scoring & Escalation
 
-SentinelTrace follows a layered, analyst-oriented pipeline:
-
-1. **Data Ingestion**
-   - Sysmon XML logs collected from Windows endpoints
-
-2. **Event Parsing & Normalization**
-   - Namespace-aware XML parsing  
-   - Field normalization for consistent analysis  
-
-3. **Baseline Learning**
-   - Per-host and per-process behavioral baselines  
-   - Noise suppression using low-severity activity  
-
-4. **Behavioral Analysis**
-   - Burst detection  
-   - Parent-child anomaly detection  
-   - Network behavior analysis  
-
-5. **MITRE ATT&CK & Kill Chain Mapping**
-   - Technique-to-tactic mapping  
-   - Kill chain stage progression  
-
-6. **Correlation Engine**
-   - Process lineage correlation  
-   - Time-window based grouping  
-
-7. **Confidence Scoring**
-   - Risk-based prioritization  
-   - Analyst decision support  
-
-8. **SOC Investigation Dashboard**
-   - Timeline view  
-   - Confidence-ranked detections  
+- Baseline-aware scoring
+- Contextual execution weighting
+- Behavioral escalation logic
+- False-positive reduction mechanisms
 
 ---
 
-## Detection Logic (High Level)
+## Threat Hunting Dashboard
 
-### Event Ingestion
-- Namespace-aware Sysmon XML parsing  
-- Deterministic event identifiers for correlation  
+Interactive SOC-oriented investigation dashboard featuring:
 
-### Baseline Learning
-- Learns normal execution behavior from low-severity activity  
-- Prevents learning malicious behavior as baseline  
-
-### Behavioral Detection
-- Unusual execution frequency  
-- Suspicious parent-child relationships  
-- Abnormal outbound network activity  
-- Persistence-related registry and file modifications  
-
-### Correlation & Campaign Analysis
-- Links events by:
-  - Process lineage  
-  - Host identity  
-  - Time proximity  
-- Builds attack narratives rather than isolated alerts  
+- Threat posture overview
+- Campaign correlation
+- Attack timeline reconstruction
+- ATT&CK analytics
+- Process investigation
+- Escalation reasoning
+- Threat triage workflows
 
 ---
 
-## Supported Data Sources
+## LOLBIN & Command Analysis
 
-- Windows Sysmon (XML export)  
-- Windows Security events (basic support)  
-- Firewall / network telemetry (optional)  
-- YARA-based command-line and artifact detection  
+Detects suspicious use of:
 
----
-
-## Tech Stack
-
-- Python  
-- Pandas  
-- SQLite  
-- Flask  
-- Sysmon  
-- MITRE ATT&CK  
-- YARA (optional)  
+- PowerShell
+- cmd.exe
+- rundll32
+- regsvr32
+- WMI
+- Encoded commands
+- Suspicious command-line execution patterns
 
 ---
 
-## Installation & Quick Start
+# Architecture
+
+![Architecture](screenshots/architecture.png)
+
+```text
+Sysmon XML Logs
+        ↓
+Event Parser
+        ↓
+Telemetry Normalization
+        ↓
+Baseline & Sequence Analysis
+        ↓
+Behavioral Correlation Engine
+        ↓
+MITRE ATT&CK Enrichment
+        ↓
+Threat Scoring & Escalation
+        ↓
+SOC Investigation Dashboard
+```
+
+---
+
+# Screenshots
+
+## Main Dashboard
+
+![Dashboard](screenshots/dashboard.png)
+
+---
+
+## MITRE ATT&CK Mapping
+
+![MITRE](screenshots/mitre.png)
+
+---
+
+## Threat Investigation
+
+![Investigation](screenshots/investigation.png)
+
+---
+
+## Hunt Console
+
+![Hunt Console](screenshots/hunt_console.png)
+
+---
+
+# Repository Structure
+
+```text
+dashboard/          Core platform source code
+tools/              Validation and calibration tooling
+docs/               SQL setup scripts and architecture docs
+screenshots/        Dashboard screenshots
+```
+
+---
+
+# Technology Stack
+
+| Component | Technology |
+|---|---|
+| Backend | Python |
+| Framework | Flask |
+| Frontend | HTML / CSS / JavaScript |
+| Data Processing | Pandas |
+| Telemetry Source | Sysmon |
+| Threat Mapping | MITRE ATT&CK |
+| Detection Logic | Behavioral Correlation |
+
+---
+
+# Installation
+
+## Clone Repository
 
 ```bash
-git clone https://github.com/lokilokith/sentineltrace.git
-cd sentineltrace
+git clone https://github.com/lokilokith/sentineltrace-platform.git
+cd sentineltrace-platform
+```
 
-python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
+---
 
+## Create Virtual Environment
+
+```bash
+python -m venv .venv
+```
+
+### Windows
+
+```bash
+.venv\Scripts\activate
+```
+
+### Linux / macOS
+
+```bash
+source .venv/bin/activate
+```
+
+---
+
+## Install Dependencies
+
+```bash
 pip install -r requirements.txt
-Run the Dashboard
-bash
-Copy code
+```
+
+---
+
+# Running the Platform
+
+```bash
 python dashboard/app.py
-Open in your browser:
+```
 
-arduino
-Copy code
-http://localhost:5000
-How to Use
-Load Sysmon XML logs
+Open:
 
-Allow baseline to form from normal activity
+```text
+http://127.0.0.1:5000
+```
 
-Review:
+---
 
-Confidence scores
+# Example Workflow
 
-Kill chain stages
+1. Upload Sysmon XML logs
+2. Parse and normalize telemetry
+3. Run behavioral correlation
+4. Generate ATT&CK mappings
+5. Build campaign relationships
+6. Escalate suspicious activity
+7. Investigate findings through dashboard workflows
 
-Behavioral bursts
+---
 
-Investigate high-confidence detections
+# Validation & Calibration
 
-Ignore baseline-stable noise
+The repository includes:
 
-Limitations (Honest)
-Not a full SIEM
+- forensic calibration tooling
+- orchestration validation
+- threat scoring calibration
+- behavioral validation workflows
 
-Near-real-time / batch analysis (not streaming)
+Located in:
 
-Detection quality depends on Sysmon configuration
+```text
+tools/
+```
 
-Behavioral detection does not guarantee malware identification
+---
 
-SentinelTrace assists analysts — it does not replace analyst judgment.
+# Current Capabilities
 
-Project Status
-Personal SOC lab and final-year project
+- Offline Sysmon analysis
+- Threat hunting workflows
+- Campaign reconstruction
+- MITRE ATT&CK enrichment
+- Timeline reconstruction
+- Behavioral threat scoring
+- LOLBIN analysis
+- Investigation-oriented analytics
 
-Designed for learning, experimentation, and portfolio demonstration
+---
 
-Actively evolving
+# Known Limitations
 
-Author
-Lokith Duraisamy
-B.Tech CSE (Cyber Security) – Parul University, Gujarat
-Aspiring SOC Analyst / Blue Team Practitioner
+- Offline analysis only
+- Not designed for realtime telemetry ingestion
+- Requires Sysmon-generated XML telemetry
+- Educational and research-focused platform
+- Not intended as an enterprise-scale SIEM replacement
 
-License
-MIT License
+---
 
-Final Note
-SOC work is fundamentally about signal versus noise.
+# Future Improvements
 
-SentinelTrace is built to help analysts:
+Potential future enhancements:
 
-Reduce noise
+- Sigma rule integration
+- Multi-host telemetry correlation
+- Enhanced DFIR workflows
+- Expanded ATT&CK enrichment
+- Threat intelligence integration
 
-Understand attack behavior
+---
 
-Make better investigation decisions
+# Educational Purpose
 
-If it helps you think more like a SOC analyst, it has done its job.
+This project was developed as a SOC-focused cybersecurity engineering and threat hunting platform for learning:
+
+- Detection engineering
+- Endpoint telemetry analysis
+- Behavioral analytics
+- MITRE ATT&CK mapping
+- Threat investigation workflows
+
+---
+
+# License
+
+This project is released for educational and portfolio purposes.
